@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux GCC
+          - os: ubuntu-latest
+            compiler: gcc
+            version: 11
+            build_type: Release
+          - os: ubuntu-latest
+            compiler: gcc
+            version: 13
+            build_type: Release
+
+          # Linux Clang
+          - os: ubuntu-latest
+            compiler: clang
+            version: 15
+            build_type: Release
+          - os: ubuntu-latest
+            compiler: clang
+            version: 17
+            build_type: Release
+
+          # macOS (Apple Clang)
+          - os: macos-15
+            compiler: apple-clang
+            build_type: Release
+
+          # Windows MSVC
+          - os: windows-latest
+            compiler: msvc
+            build_type: Release
+
+          # Windows Clang
+          - os: windows-latest
+            compiler: clang-cl
+            build_type: Release
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup GCC
+        if: matrix.compiler == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-${{ matrix.version }}
+          echo "CXX=g++-${{ matrix.version }}" >> $GITHUB_ENV
+          echo "CC=gcc-${{ matrix.version }}" >> $GITHUB_ENV
+
+      - name: Setup Clang (Linux)
+        if: matrix.compiler == 'clang' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-${{ matrix.version }}
+          echo "CXX=clang++-${{ matrix.version }}" >> $GITHUB_ENV
+          echo "CC=clang-${{ matrix.version }}" >> $GITHUB_ENV
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DONYX_FONT_BUILD_TESTS=ON \
+            -DONYX_FONT_BUILD_EXAMPLES=OFF \
+            -DONYX_FONT_BUILD_DEMOS=OFF
+
+      - name: Configure (Windows MSVC)
+        if: matrix.compiler == 'msvc'
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+            -DONYX_FONT_BUILD_TESTS=ON `
+            -DONYX_FONT_BUILD_EXAMPLES=OFF `
+            -DONYX_FONT_BUILD_DEMOS=OFF
+
+      - name: Configure (Windows Clang)
+        if: matrix.compiler == 'clang-cl'
+        run: |
+          cmake -B build `
+            -T ClangCL `
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+            -DONYX_FONT_BUILD_TESTS=ON `
+            -DONYX_FONT_BUILD_EXAMPLES=OFF `
+            -DONYX_FONT_BUILD_DEMOS=OFF
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }}
+
+      - name: Test
+        run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
