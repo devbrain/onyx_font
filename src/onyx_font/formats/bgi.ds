@@ -1,0 +1,136 @@
+/**
+ * Borland BGI (Borland Graphics Interface) Stroke Font Format
+ *
+ * BGI fonts are vector/stroke fonts used in Borland graphics libraries.
+ * Each glyph is defined as a series of move/draw commands.
+ *
+ * File structure:
+ * 1. Header prefix: "PK" + description text + 0x1A terminator (variable)
+ * 2. Header info: size, font name, version (at fixed offset after 0x1A)
+ * 3. Font data at offset header_size: metrics, character table, stroke data
+ *
+ * The stroke commands use a 2-byte encoding per command.
+ */
+package formats.bgi;
+
+// BGI fonts use little-endian byte order
+little;
+
+// =============================================================================
+// Header Structures
+// =============================================================================
+
+/**
+ * BGI Font Header Info
+ *
+ * This structure appears immediately after the 0x1A terminator.
+ * The caller must first scan past "PK" and description text to find 0x1A.
+ */
+struct bgi_header_info {
+    uint16 header_size;      // Total header size (offset to font data)
+    uint8  font_name[4];     // 4-character font identifier
+    uint16 font_size;        // Size of font data
+    uint8  font_major;       // Major version (must be > 0)
+    uint8  font_minor;       // Minor version
+};
+
+/**
+ * BGI Font Data Header
+ *
+ * This structure appears at offset header_size from start of file.
+ * Contains font metrics and character table information.
+ *
+ * Example from GOTH.CHR at offset 0x80:
+ *   stroke_check = 0x2B
+ *   char_count = 223
+ *   start_char = 0x20 (space)
+ *   strokes_offset = 685
+ *   origin_to_ascender = 25
+ *   origin_to_descender = -7
+ */
+struct bgi_font_data_header {
+    uint8  stroke_check : stroke_check == 0x2B;  // Must be 0x2B
+    uint16 char_count;            // Number of characters in font
+    uint8  undefined1;            // Unused byte
+    uint8  start_char;            // First character code (usually 0x20)
+    uint16 strokes_offset;        // Offset to stroke data (from start of this struct)
+    int8   scan_flag;             // Scanning flag
+    int8   origin_to_ascender;    // Distance from origin to top (positive)
+    int8   origin_to_baseline;    // Distance from origin to baseline
+    int8   origin_to_descender;   // Distance from origin to bottom (negative)
+    uint8  font_name[4];          // 4-character font name (may be zeros)
+    uint8  undefined2;            // Unused byte
+};
+
+/**
+ * Complete BGI Font Data Block
+ *
+ * Combines the header with the character offset table.
+ * Located at file offset = header_size.
+ */
+struct bgi_font_data {
+    bgi_font_data_header header;
+    uint16 char_offsets[header.char_count];  // Offset table for each character
+};
+
+/**
+ * BGI Stroke Command (2 bytes)
+ *
+ * Each stroke command is encoded in 2 bytes:
+ *   byte[0]: dx (7-bit signed) + opcode bit 7
+ *   byte[1]: dy (7-bit signed) + opcode bit 7
+ *
+ * Opcode (from high bits):
+ *   m = (byte[0] >> 7) + ((byte[1] >> 7) << 1)
+ *   - 0: End of glyph
+ *   - 1: Scan/skip (unused in drawing)
+ *   - 2: Move to (pen up)
+ *   - 3: Draw to (pen down)
+ *
+ * Coordinates are 7-bit signed values with sign extension:
+ *   dx = (byte[0] & 0x7F) | ((byte[0] & 0x40) << 1)
+ *   dy = -((byte[1] & 0x7F) | ((byte[1] & 0x40) << 1))  // negated
+ */
+struct bgi_stroke_command {
+    uint8 byte0;    // dx (7-bit) + opcode high bit
+    uint8 byte1;    // dy (7-bit) + opcode high bit
+};
+
+// =============================================================================
+// Usage Notes
+// =============================================================================
+
+/*
+ * BGI FONT PARSING WORKFLOW:
+ *
+ * 1. Read first 2 bytes, verify "PK" signature
+ * 2. Scan forward until 0x1A terminator (max 253 bytes)
+ * 3. Read bgi_header_info (8 bytes)
+ * 4. Seek to header_size offset
+ * 5. Read bgi_font_data (16 bytes)
+ * 6. Verify stroke_check == 0x2B
+ * 7. Read char_count offsets (2 bytes each)
+ * 8. For each character:
+ *    - Seek to header_size + strokes_offset + offset[i]
+ *    - Read stroke commands until opcode == 0
+ *
+ * STROKE COORDINATE SYSTEM:
+ *
+ * - Origin is at the character baseline
+ * - Y increases upward (opposite of screen coordinates)
+ * - Coordinates are relative to the origin point
+ * - The loader should track pen position and convert to screen coords
+ *
+ * STANDARD BGI FONTS:
+ *
+ * - TRIP.CHR: Triplex font (serif, proportional)
+ * - LITT.CHR: Small font
+ * - SANS.CHR: Sans-serif font
+ * - GOTH.CHR: Gothic font
+ * - SCRI.CHR: Script font
+ * - SIMP.CHR: Simplex font
+ * - TSCR.CHR: Triplex script
+ * - LCOM.CHR: Complex font
+ * - EURO.CHR: European font
+ * - BOLD.CHR: Bold font
+ */
