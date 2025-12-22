@@ -225,4 +225,4 @@ This library uses the following open-source components:
 
 ---
 
-*onyx_font is part of the Ares project.*
+
