@@ -25,11 +25,11 @@ jobs:
           # Linux Clang
           - os: ubuntu-latest
             compiler: clang
-            version: 15
+            version: 16
             build_type: Release
           - os: ubuntu-latest
             compiler: clang
-            version: 17
+            version: 18
             build_type: Release
 
           # macOS (Apple Clang)
@@ -101,3 +101,30 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
+
+  # Debug build for additional coverage
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup GCC 13
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-13
+          echo "CXX=g++-13" >> $GITHUB_ENV
+          echo "CC=gcc-13" >> $GITHUB_ENV
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DONYX_FONT_BUILD_TESTS=ON \
+            -DONYX_FONT_BUILD_EXAMPLES=OFF \
+            -DONYX_FONT_BUILD_DEMOS=OFF
+
+      - name: Build
+        run: cmake --build build --config Debug
+
+      - name: Test
+        run: ctest --test-dir build --build-config Debug --output-on-failure

@@ -1,5 +1,7 @@
 # onyx_font
 
+[![CI](https://github.com/devbrain/onyx_font/actions/workflows/ci.yml/badge.svg)](https://github.com/devbrain/onyx_font/actions/workflows/ci.yml)
+
 A modern C++20 library for loading, manipulating, and rendering fonts from multiple formats including Windows FON/FNT, TrueType, OpenType, and Borland BGI files.
 
 ---
