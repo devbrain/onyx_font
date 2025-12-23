@@ -28,7 +28,7 @@ namespace {
     }
 
     // Create a simple 8x8 bitmap with a diagonal line for testing (LSB_FIRST)
-    std::vector <std::byte> create_test_bitmap_8x8_lsb() {
+    [[maybe_unused]] std::vector <std::byte> create_test_bitmap_8x8_lsb() {
         // LSB_FIRST: (0,0) is bit 0, (7,7) is bit 7.
         return {
             std::byte{0b00000001}, // (0,0) is set

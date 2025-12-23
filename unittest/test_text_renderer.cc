@@ -127,7 +127,7 @@ TEST_SUITE("text_renderer") {
         renderer.draw_aligned("Hi", 0.0f, 0.0f, 200.0f, text_align::right, blit);
 
         // Last glyph should end near 200
-        auto text_width = renderer.measure("Hi").width;
+        [[maybe_unused]] auto text_width = renderer.measure("Hi").width;
         CHECK(last_x > 100.0f);  // Should be in right half
     }
 

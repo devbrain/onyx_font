@@ -43,8 +43,8 @@ namespace onyx_font {
             if (data.size() < 6) return false;
 
             // Check version field (first 2 bytes, little-endian)
-            uint16_t version = static_cast<uint16_t>(data[0]) |
-                              (static_cast<uint16_t>(data[1]) << 8);
+            uint16_t version = static_cast<uint16_t>(static_cast<uint16_t>(data[0]) |
+                              static_cast<uint16_t>(static_cast<uint16_t>(data[1]) << 8));
 
             if (version != FNT_VERSION_1 && version != FNT_VERSION_2 && version != FNT_VERSION_3) {
                 return false;
@@ -92,9 +92,9 @@ namespace onyx_font {
             font_entry entry;
             entry.name = font.metrics.face_name;
             entry.type = font_type::BITMAP;  // OS/2 GPI fonts are bitmap fonts
-            entry.pixel_height = font.cell_height;
-            entry.point_size = font.metrics.nominal_point_size / 10;  // nominal_point_size is size * 10
-            entry.weight = font.metrics.weight_class / 10;  // weight_class is 1000-9000
+            entry.pixel_height = static_cast<uint16_t>(font.cell_height);
+            entry.point_size = static_cast<uint16_t>(font.metrics.nominal_point_size / 10);  // nominal_point_size is size * 10
+            entry.weight = static_cast<uint16_t>(font.metrics.weight_class / 10);  // weight_class is 1000-9000
             entry.italic = false;  // OS/2 fonts don't have italic flag in metrics
             return entry;
         }
@@ -110,25 +110,25 @@ namespace onyx_font {
             fd.type = libexe::font_type::RASTER;
 
             // Metrics from OS/2 font
-            fd.points = os2.metrics.nominal_point_size / 10;
-            fd.vertical_res = os2.metrics.device_res_y;
-            fd.horizontal_res = os2.metrics.device_res_x;
-            fd.ascent = os2.metrics.max_ascender;
-            fd.internal_leading = os2.metrics.internal_leading;
-            fd.external_leading = os2.metrics.external_leading;
+            fd.points = static_cast<uint16_t>(os2.metrics.nominal_point_size / 10);
+            fd.vertical_res = static_cast<uint16_t>(os2.metrics.device_res_y);
+            fd.horizontal_res = static_cast<uint16_t>(os2.metrics.device_res_x);
+            fd.ascent = static_cast<uint16_t>(os2.metrics.max_ascender);
+            fd.internal_leading = static_cast<uint16_t>(os2.metrics.internal_leading);
+            fd.external_leading = static_cast<uint16_t>(os2.metrics.external_leading);
 
             // Appearance
             fd.italic = false;
             fd.underline = false;
             fd.strikeout = false;
-            fd.weight = os2.metrics.weight_class / 10;  // Convert 1000-9000 to 100-900
+            fd.weight = static_cast<uint16_t>(os2.metrics.weight_class / 10);  // Convert 1000-9000 to 100-900
             fd.charset = 0;  // Default charset
 
             // Dimensions
-            fd.pixel_width = os2.metrics.ave_char_width;
-            fd.pixel_height = os2.cell_height;
-            fd.avg_width = os2.metrics.ave_char_width;
-            fd.max_width = os2.metrics.max_char_inc;
+            fd.pixel_width = static_cast<uint16_t>(os2.metrics.ave_char_width);
+            fd.pixel_height = static_cast<uint16_t>(os2.cell_height);
+            fd.avg_width = static_cast<uint16_t>(os2.metrics.ave_char_width);
+            fd.max_width = static_cast<uint16_t>(os2.metrics.max_char_inc);
             fd.width_bytes = 0;  // Will be calculated if needed
 
             // Character range
@@ -775,7 +775,7 @@ namespace onyx_font {
     bitmap_font font_factory::load_raw(std::span<const uint8_t> data,
                                        const raw_font_options& options) {
         // Calculate expected data size
-        size_t bytes_per_char = (options.char_width + 7) / 8 * options.char_height;
+        size_t bytes_per_char = static_cast<size_t>((options.char_width + 7) / 8) * static_cast<size_t>(options.char_height);
         size_t expected_size = bytes_per_char * options.char_count;
 
         THROW_IF(data.size() < expected_size, std::runtime_error,

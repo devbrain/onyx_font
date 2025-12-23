@@ -264,7 +264,7 @@ TEST_SUITE("font_source") {
 
         // Request metrics for a non-existent glyph (high codepoint)
         // Should use default char
-        auto metrics = source.get_glyph_metrics(0x1234, 12.0f);
+        [[maybe_unused]] auto metrics = source.get_glyph_metrics(0x1234, 12.0f);
 
         // Metrics should still be valid (from default char)
         // For bitmap fonts with limited charset, this returns zeros
