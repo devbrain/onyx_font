@@ -139,22 +139,6 @@ datascript_generate(
         PRESERVE_PACKAGE_DIRS ON
 )
 
-# Suppress warnings for source files that include generated code (datascript-generated headers)
-# Use compiler ID check to include clang-cl (which sets MSVC=TRUE but supports -Wno-xxx flags)
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    set_source_files_properties(
-            loader/bgi_fon.cc
-            PROPERTIES COMPILE_OPTIONS "-Wno-unused-variable;-Wno-sign-conversion;-Wno-implicit-int-conversion"
-    )
-    # Suppress warnings from third-party mzexplode library headers
-    set_source_files_properties(
-            font_factory.cc
-            loader/win_fon.cc
-            loader/win_vector_fon.cc
-            PROPERTIES COMPILE_OPTIONS "-Wno-sign-conversion;-Wno-shadow;-Wno-conversion"
-    )
-endif ()
-
 add_library(onyx_font
         bitmap_font.cc
         ${PROJECT_SOURCE_DIR}/include/onyx_font/bitmap_font.hh
@@ -230,11 +214,6 @@ set_target_properties(onyx_font PROPERTIES
 # ===========================================================================
 # Strict Compiler Warnings (MSVC, GCC, Clang)
 # ===========================================================================
-if (MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
-    # Suppress MSVC CRT deprecation warnings from third-party headers (failsafe uses gmtime)
-    target_compile_definitions(onyx_font PRIVATE _CRT_SECURE_NO_WARNINGS)
-endif()
-
 if (MSVC)
     target_compile_options(onyx_font PRIVATE
             /W4           # Warning level 4 (very strict)
@@ -260,15 +239,7 @@ if (MSVC)
             /w14906       # String literal cast to 'LPWSTR'
             /w14928       # Illegal copy-initialization; more than one user-defined conversion has been implicitly applied
             /wd4251       # Disable warning about DLL interface for STL types (common in shared libraries)
-            /wd4458       # Disable warning about declaration hiding class member (from mzexplode headers)
     )
-
-    # Handle clang-cl (Clang frontend with MSVC backend) - needs Clang warning flags via /clang: prefix
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options(onyx_font PRIVATE
-                /clang:-Wno-unused-parameter  # Suppress warnings from third-party euler library headers
-        )
-    endif ()
 else ()
     # GCC and Clang common warnings
     target_compile_options(onyx_font PRIVATE
@@ -295,7 +266,7 @@ else ()
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         target_compile_options(onyx_font PRIVATE
                 -Wduplicated-cond           # Warn on duplicated conditions in if-else chains
-                # Note: -Wduplicated-branches disabled due to false positive in third-party failsafe library
+                -Wduplicated-branches       # Warn on duplicated branches in if-else chains
                 -Wlogical-op                # Warn on suspicious uses of logical operators
                 -Wuseless-cast              # Warn on useless casts
                 -Wsuggest-override          # Suggest override for virtual functions
@@ -309,7 +280,6 @@ else ()
                 -Wthread-safety             # Thread safety analysis (Clang)
                 -Wno-c++98-compat           # Don't warn about C++98 incompatibility
                 -Wno-c++98-compat-pedantic  # Don't warn about C++98 incompatibility (pedantic)
-                -Wno-unused-parameter       # Suppress unused parameter warnings from third-party euler library
         )
     endif ()
 endif ()
