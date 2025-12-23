@@ -411,7 +411,7 @@ TEST_SUITE("bitmap_view (standalone)") {
         CHECK(view.pixel(6, 0) == false);
         CHECK(view.pixel(14, 0) == false);
 
-        CHECK_THROWS_AS((view.pixel(20, 0) == false), std::runtime_error); // Out of bounds
+        CHECK_THROWS_AS(view.pixel(20, 0), std::runtime_error); // Out of bounds
     }
 }
 
@@ -527,7 +527,7 @@ TEST_SUITE("bitmap_builder non-trivial stride") {
         CHECK(view.pixel(16, 0) == true);
         CHECK(view.pixel(1, 0) == false);
         CHECK(view.pixel(9, 0) == false);
-        CHECK_THROWS(view.pixel(17, 0) == false); // Should assert/be false, not set
+        CHECK_THROWS(view.pixel(17, 0)); // Out of bounds - should throw
     }
 }
 
