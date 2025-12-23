@@ -11,6 +11,14 @@
 
 #include "loader/loaders.hh"
 
+// Windows headers define RT_FONT and RT_FD as macros that conflict with libexe enums
+#ifdef RT_FONT
+#undef RT_FONT
+#endif
+#ifdef RT_FD
+#undef RT_FD
+#endif
+
 namespace onyx_font {
 
     namespace {

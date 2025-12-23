@@ -143,7 +143,7 @@ datascript_generate(
 if (NOT MSVC)
     set_source_files_properties(
             loader/bgi_fon.cc
-            PROPERTIES COMPILE_OPTIONS "-Wno-unused-variable;-Wno-sign-conversion"
+            PROPERTIES COMPILE_OPTIONS "-Wno-unused-variable;-Wno-sign-conversion;-Wno-implicit-int-conversion"
     )
     # Suppress warnings from third-party mzexplode library headers
     set_source_files_properties(
@@ -259,6 +259,7 @@ if (MSVC)
             /w14906       # String literal cast to 'LPWSTR'
             /w14928       # Illegal copy-initialization; more than one user-defined conversion has been implicitly applied
             /wd4251       # Disable warning about DLL interface for STL types (common in shared libraries)
+            /wd4458       # Disable warning about declaration hiding class member (from mzexplode headers)
     )
 else ()
     # GCC and Clang common warnings
