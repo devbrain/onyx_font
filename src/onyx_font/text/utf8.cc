@@ -48,7 +48,7 @@ utf8_decode_result utf8_decode_one(std::string_view str) {
         if (len < 2 || !is_continuation(data[1])) {
             return {REPLACEMENT_CHAR, 1};
         }
-        char32_t cp = ((first & 0x1F) << 6) | (data[1] & 0x3F);
+        char32_t cp = static_cast<char32_t>(((first & 0x1F) << 6) | (data[1] & 0x3F));
         // Check for overlong encoding
         if (cp < 0x80) {
             return {REPLACEMENT_CHAR, 2};
@@ -61,9 +61,9 @@ utf8_decode_result utf8_decode_one(std::string_view str) {
         if (len < 3 || !is_continuation(data[1]) || !is_continuation(data[2])) {
             return {REPLACEMENT_CHAR, 1};
         }
-        char32_t cp = ((first & 0x0F) << 12) |
+        char32_t cp = static_cast<char32_t>(((first & 0x0F) << 12) |
                       ((data[1] & 0x3F) << 6) |
-                      (data[2] & 0x3F);
+                      (data[2] & 0x3F));
         // Check for overlong encoding
         if (cp < 0x800) {
             return {REPLACEMENT_CHAR, 3};
@@ -81,10 +81,10 @@ utf8_decode_result utf8_decode_one(std::string_view str) {
             !is_continuation(data[2]) || !is_continuation(data[3])) {
             return {REPLACEMENT_CHAR, 1};
         }
-        char32_t cp = ((first & 0x07) << 18) |
+        char32_t cp = static_cast<char32_t>(((first & 0x07) << 18) |
                       ((data[1] & 0x3F) << 12) |
                       ((data[2] & 0x3F) << 6) |
-                      (data[3] & 0x3F);
+                      (data[3] & 0x3F));
         // Check for overlong encoding
         if (cp < 0x10000) {
             return {REPLACEMENT_CHAR, 4};
