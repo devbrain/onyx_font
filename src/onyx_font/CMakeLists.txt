@@ -229,6 +229,11 @@ set_target_properties(onyx_font PROPERTIES
 # ===========================================================================
 # Strict Compiler Warnings (MSVC, GCC, Clang)
 # ===========================================================================
+if (MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+    # Suppress MSVC CRT deprecation warnings from third-party headers (failsafe uses gmtime)
+    target_compile_definitions(onyx_font PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 if (MSVC)
     target_compile_options(onyx_font PRIVATE
             /W4           # Warning level 4 (very strict)

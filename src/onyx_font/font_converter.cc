@@ -130,7 +130,7 @@ bitmap_font font_converter::from_vector(
         if (!glyph || glyph->strokes.empty()) {
             // Empty glyph - create 1x1 placeholder
             (void)builder.reserve_glyph(1, 1);
-            result.m_spacing[idx].b_space = 1;
+            result.m_spacing[idx].b_space = std::uint16_t{1};
             continue;
         }
 
@@ -264,7 +264,7 @@ bitmap_font font_converter::from_ttf(
             if (auto gm = font.get_glyph_metrics(static_cast<uint32_t>(ch), pixel_height)) {
                 result.m_spacing[idx].b_space = static_cast<uint16_t>(std::ceil(gm->advance_x));
             } else {
-                result.m_spacing[idx].b_space = 1;
+                result.m_spacing[idx].b_space = std::uint16_t{1};
             }
             continue;
         }
