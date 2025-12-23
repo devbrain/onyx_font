@@ -99,8 +99,15 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }}
 
-      - name: Test
+      - name: Test (Unix)
+        if: runner.os != 'Windows'
         run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $env:PATH = "${{ github.workspace }}\build\src\onyx_font\${{ matrix.build_type }};${{ github.workspace }}\build\bin\${{ matrix.build_type }};${{ github.workspace }}\build\lib\${{ matrix.build_type }};$env:PATH"
+          ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
 
   # Debug build for additional coverage
   debug:

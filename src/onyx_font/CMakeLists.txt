@@ -302,6 +302,7 @@ else ()
                 -Wthread-safety             # Thread safety analysis (Clang)
                 -Wno-c++98-compat           # Don't warn about C++98 incompatibility
                 -Wno-c++98-compat-pedantic  # Don't warn about C++98 incompatibility (pedantic)
+                -Wno-unused-parameter       # Suppress unused parameter warnings from third-party euler library
         )
     endif ()
 endif ()
