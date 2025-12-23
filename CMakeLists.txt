@@ -67,6 +67,7 @@ add_subdirectory(src/onyx_font)
 
 # Unit tests (optional)
 if(ONYX_FONT_BUILD_TESTS)
+    enable_testing()
     add_subdirectory(unittest)
 endif()
 

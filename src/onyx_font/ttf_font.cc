@@ -11,7 +11,9 @@
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wuseless-cast"
+#endif
 #endif
 
 #include <stb_truetype.h>

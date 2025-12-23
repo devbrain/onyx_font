@@ -106,14 +106,8 @@ target_compile_definitions(onyxfont_unittest PRIVATE
 )
 
 # Register tests with CTest
-if (DEFINED doctest_SOURCE_DIR AND EXISTS ${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
-    # Using FetchContent doctest - can use discovery
-    include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
-    doctest_discover_tests(onyxfont_unittest)
-else ()
-    # Using system/parent-provided doctest - simple test registration
-    add_test(NAME onyxfont_unittest COMMAND onyxfont_unittest)
-endif ()
+include(CTest)
+add_test(NAME onyxfont_unittest COMMAND onyxfont_unittest)
 
 # Diagnostic tool to dump font metadata (for ground truth)
 add_executable(dump_font_metadata
