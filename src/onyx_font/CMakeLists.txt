@@ -262,6 +262,13 @@ if (MSVC)
             /wd4251       # Disable warning about DLL interface for STL types (common in shared libraries)
             /wd4458       # Disable warning about declaration hiding class member (from mzexplode headers)
     )
+
+    # Handle clang-cl (Clang frontend with MSVC backend) - needs Clang warning flags via /clang: prefix
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(onyx_font PRIVATE
+                /clang:-Wno-unused-parameter  # Suppress warnings from third-party euler library headers
+        )
+    endif ()
 else ()
     # GCC and Clang common warnings
     target_compile_options(onyx_font PRIVATE
