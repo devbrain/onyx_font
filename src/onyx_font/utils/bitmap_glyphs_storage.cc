@@ -112,12 +112,10 @@ namespace onyx_font {
     }
 
     bitmap_builder::glyph_writer::glyph_writer(std::vector <std::byte>* blob,
-                                               std::vector <bitmap_storage::glyph_internal>* glyphs,
                                                std::size_t glyph_index, std::size_t offset,
                                                std::uint16_t w, std::uint16_t h, std::uint16_t stride,
                                                bit_order order) noexcept
         : m_blob(blob)
-          , m_glyphs(glyphs)
           , m_glyph_index(glyph_index)
           , m_offset(offset)
           , m_width(w)
@@ -154,7 +152,7 @@ namespace onyx_font {
         m_glyphs.push_back(gi);
         const std::size_t glyph_index = m_glyphs.size() - 1;
 
-        return {&m_blob, &m_glyphs, glyph_index, offset, width, height, stride, m_order};
+        return {&m_blob, glyph_index, offset, width, height, stride, m_order};
     }
 
     std::size_t bitmap_builder::add_glyph_packed(std::uint16_t width, std::uint16_t height,

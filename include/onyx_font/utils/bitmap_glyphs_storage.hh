@@ -591,7 +591,6 @@ namespace onyx_font {
             friend class bitmap_builder;
 
             glyph_writer(std::vector<std::byte>* blob,
-                         std::vector<bitmap_storage::glyph_internal>* glyphs,
                          std::size_t glyph_index,
                          std::size_t offset,
                          std::uint16_t w,
@@ -602,7 +601,6 @@ namespace onyx_font {
             void set_bit(std::uint16_t x, std::uint16_t y, bool on) noexcept;
 
             std::vector<std::byte>* m_blob = nullptr;
-            std::vector<bitmap_storage::glyph_internal>* m_glyphs = nullptr;
             std::size_t m_glyph_index = 0;
             std::size_t m_offset = 0;
             std::uint16_t m_width = 0;

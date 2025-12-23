@@ -91,7 +91,7 @@ namespace onyx_font {
      * Contains all the data needed to render a glyph from the atlas:
      * position in atlas, bearings for positioning, and advance width.
      */
-    struct ONYX_FONT_EXPORT cached_glyph {
+    struct cached_glyph {
         int atlas_index = 0;   ///< Index of atlas containing this glyph
         glyph_rect rect;       ///< Position and size within the atlas
         float bearing_x = 0;   ///< Left side bearing (pen to glyph left edge)
@@ -104,7 +104,7 @@ namespace onyx_font {
      *
      * Controls atlas size, padding between glyphs, and pre-caching behavior.
      */
-    struct ONYX_FONT_EXPORT glyph_cache_config {
+    struct glyph_cache_config {
         /**
          * @brief Atlas texture size (square).
          *

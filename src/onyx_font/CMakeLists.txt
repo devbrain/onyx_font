@@ -140,7 +140,8 @@ datascript_generate(
 )
 
 # Suppress warnings for source files that include generated code (datascript-generated headers)
-if (NOT MSVC)
+# Use compiler ID check to include clang-cl (which sets MSVC=TRUE but supports -Wno-xxx flags)
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set_source_files_properties(
             loader/bgi_fon.cc
             PROPERTIES COMPILE_OPTIONS "-Wno-unused-variable;-Wno-sign-conversion;-Wno-implicit-int-conversion"

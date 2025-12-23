@@ -114,7 +114,7 @@ namespace onyx_font {
      *              GL_RED, GL_UNSIGNED_BYTE, atlas.data());
      * @endcode
      */
-    class ONYX_FONT_EXPORT memory_atlas {
+    class memory_atlas {
     public:
         /**
          * @brief Construct atlas with given dimensions.
