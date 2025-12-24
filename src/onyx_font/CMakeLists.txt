@@ -1,113 +1,113 @@
-# Include required modules
+# =============================================================================
+# onyx_font Library
+# =============================================================================
+
 include(GenerateExportHeader)
 include(FetchContent)
 
+# =============================================================================
+# Dependencies
+# =============================================================================
+
 set(FETCHCONTENT_QUIET OFF)
-if (NOT TARGET mzexplode::libexe)
+
+# mz-explode - Windows executable format library
+if(NOT TARGET neutrino::libexe)
     message(STATUS "libexe not found, fetching from GitHub...")
-    set(MZEXPLODE_BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(MZEXPLODE_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-    set(MZEXPLODE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+
+    set(NEUTRINO_MZEXPLODE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(NEUTRINO_MZEXPLODE_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+    set(NEUTRINO_MZEXPLODE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 
     FetchContent_Declare(
-            mzexplode
-            GIT_REPOSITORY https://github.com/devbrain/mz-explode.git
-            GIT_TAG master
-            GIT_SHALLOW TRUE
-            GIT_PROGRESS TRUE
+        mzexplode
+        GIT_REPOSITORY https://github.com/devbrain/mz-explode.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
     )
 
     FetchContent_MakeAvailable(mzexplode)
-else ()
-    message(STATUS "Using existing mz-explode (provided by parent project)")
-endif ()
+else()
+    message(STATUS "Using existing libexe (provided by parent project)")
+endif()
 
-# ===========================================================================
-# Failsafe Dependency
-# ===========================================================================
-# Note: Failsafe is fetched via FetchContent (not ext/) due to OVERRIDE_FIND_PACKAGE
-
-if (NOT TARGET failsafe AND NOT TARGET thirdparty::failsafe)
+# failsafe - Error handling library
+if(NOT TARGET failsafe AND NOT TARGET thirdparty::failsafe)
     find_package(failsafe QUIET)
 
-    if (NOT failsafe_FOUND)
+    if(NOT failsafe_FOUND)
         message(STATUS "failsafe not found - fetching from GitHub...")
 
-        # Disable failsafe tests and examples
         set(FAILSAFE_BUILD_TESTS OFF CACHE INTERNAL "")
         set(FAILSAFE_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 
-        fetchcontent_declare(
-                FAILSAFE
-                GIT_REPOSITORY "https://github.com/devbrain/failsafe.git"
-                GIT_TAG master
-                GIT_PROGRESS TRUE
-                UPDATE_COMMAND ""
-                OVERRIDE_FIND_PACKAGE
+        FetchContent_Declare(
+            FAILSAFE
+            GIT_REPOSITORY "https://github.com/devbrain/failsafe.git"
+            GIT_TAG master
+            GIT_PROGRESS TRUE
+            UPDATE_COMMAND ""
+            OVERRIDE_FIND_PACKAGE
         )
-        fetchcontent_makeavailable(FAILSAFE)
-    endif ()
-endif ()
+        FetchContent_MakeAvailable(FAILSAFE)
+    endif()
+endif()
 
-
-# DataScript - binary format parser generator
-# Guard: only fetch if not already available (could be provided by parent project)
-if (NOT TARGET ds)
+# DataScript - Binary format parser generator
+if(NOT TARGET ds)
     message(STATUS "DataScript not found, fetching from GitHub...")
 
-    set(DATASCRIPT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(NEUTRINO_DATASCRIPT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(NEUTRINO_DATASCRIPT_BUILD_HOST_TOOLS ON CACHE BOOL "" FORCE)
 
     FetchContent_Declare(
-            datascript
-            GIT_REPOSITORY https://github.com/devbrain/datascript.git
-            GIT_TAG master
-            GIT_SHALLOW TRUE
-            GIT_PROGRESS TRUE
+        datascript
+        GIT_REPOSITORY https://github.com/devbrain/datascript.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
     )
 
     FetchContent_MakeAvailable(datascript)
-else ()
+else()
     message(STATUS "Using existing DataScript (provided by parent project)")
-endif ()
+endif()
 
-# ===========================================================================
 # euler - Line rasterization library (for vector fonts)
-# ===========================================================================
-if (NOT TARGET euler::euler)
+if(NOT TARGET euler::euler)
     find_package(euler QUIET)
 
-    if (NOT euler_FOUND)
+    if(NOT euler_FOUND)
         message(STATUS "euler not found, fetching from GitHub...")
 
-        set(EULER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(EULER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(EULER_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+        set(NEUTRINO_EULER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(NEUTRINO_EULER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(NEUTRINO_EULER_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 
         FetchContent_Declare(
-                euler
-                GIT_REPOSITORY https://github.com/devbrain/euler.git
-                GIT_TAG master
-                GIT_SHALLOW TRUE
-                GIT_PROGRESS TRUE
+            euler
+            GIT_REPOSITORY https://github.com/devbrain/euler.git
+            GIT_TAG master
+            GIT_SHALLOW TRUE
+            GIT_PROGRESS TRUE
         )
 
         FetchContent_MakeAvailable(euler)
-    endif ()
-else ()
+    endif()
+else()
     message(STATUS "Using existing euler (provided by parent project)")
-endif ()
+endif()
 
-# ===========================================================================
 # stb - Single-file public domain libraries (stb_truetype for TTF parsing)
-# ===========================================================================
-if (NOT TARGET stb::stb)
+if(NOT TARGET stb::stb)
     message(STATUS "stb not found, fetching from GitHub...")
 
     FetchContent_Declare(
-            stb
-            GIT_REPOSITORY https://github.com/nothings/stb.git
-            GIT_TAG master
-            GIT_SHALLOW TRUE
+        stb
+        GIT_REPOSITORY https://github.com/nothings/stb.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
     )
 
     FetchContent_MakeAvailable(stb)
@@ -116,173 +116,160 @@ if (NOT TARGET stb::stb)
     add_library(stb INTERFACE)
     add_library(stb::stb ALIAS stb)
     target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
-else ()
+else()
     message(STATUS "Using existing stb (provided by parent project)")
-endif ()
-
-
-# Symbol visibility (hide all by default, like Windows)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
+endif()
 
 # =============================================================================
 # DataScript Code Generation
 # =============================================================================
 
 datascript_generate(
-        TARGET onyx_font_parsers
-        SCHEMAS
+    TARGET onyx_font_parsers
+    SCHEMAS
         ${CMAKE_CURRENT_SOURCE_DIR}/formats/bgi.ds
-        OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
-        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
-        PRESERVE_PACKAGE_DIRS ON
+    OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
+    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
+    PRESERVE_PACKAGE_DIRS ON
 )
 
-add_library(onyx_font
-        bitmap_font.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/bitmap_font.hh
+# =============================================================================
+# Library Target
+# =============================================================================
 
-        vector_font.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/vector_font.hh
+if(NEUTRINO_ONYX_FONT_BUILD_SHARED)
+    add_library(onyx_font SHARED)
+else()
+    add_library(onyx_font STATIC)
+endif()
 
-        ttf_font.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/ttf_font.hh
+# Create neutrino:: alias
+add_library(neutrino::onyx_font ALIAS onyx_font)
+# Legacy alias for compatibility
+add_library(onyx::font ALIAS onyx_font)
 
-        utils/stb_truetype_font.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/stb_truetype_font.hh
+target_sources(onyx_font PRIVATE
+    bitmap_font.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/bitmap_font.hh
 
-        font_factory.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/font_factory.hh
+    vector_font.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/vector_font.hh
 
-        loader/win_fon.cc
-        loader/loaders.hh
+    ttf_font.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/ttf_font.hh
 
-        loader/win_vector_fon.cc
-        loader/bgi_fon.cc
+    utils/stb_truetype_font.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/stb_truetype_font.hh
 
-        utils/bitmap_glyphs_storage.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/bitmap_glyphs_storage.hh
+    font_factory.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/font_factory.hh
 
-        # Text rendering module
-        text/utf8.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/utf8.hh
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/types.hh
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/raster_target.hh
+    loader/win_fon.cc
+    loader/loaders.hh
 
-        text/font_source.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/font_source.hh
+    loader/win_vector_fon.cc
+    loader/bgi_fon.cc
 
-        text/text_rasterizer.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/text_rasterizer.hh
+    utils/bitmap_glyphs_storage.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/bitmap_glyphs_storage.hh
 
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/atlas_surface.hh
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/glyph_cache.hh
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/glyph_rasterizer.hh
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/text/text_renderer.hh
+    # Text rendering module
+    text/utf8.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/utf8.hh
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/types.hh
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/raster_target.hh
 
-        # Font conversion utilities
-        font_converter.cc
-        ${PROJECT_SOURCE_DIR}/include/onyx_font/font_converter.hh
+    text/font_source.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/font_source.hh
+
+    text/text_rasterizer.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/text_rasterizer.hh
+
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/atlas_surface.hh
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/glyph_cache.hh
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/glyph_rasterizer.hh
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/text/text_renderer.hh
+
+    # Font conversion utilities
+    font_converter.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/font_converter.hh
 )
+
+# =============================================================================
+# Target Configuration
+# =============================================================================
+
+target_compile_features(onyx_font PUBLIC cxx_std_20)
 
 target_include_directories(onyx_font
-        PUBLIC
+    PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-        PRIVATE
+        $<INSTALL_INTERFACE:include>
+    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(onyx_font
-        PUBLIC failsafe euler::euler
-        PRIVATE mzexplode::libexe onyx_font_parsers stb::stb)
+    PUBLIC
+        failsafe
+        euler::euler
+    PRIVATE
+        neutrino::libexe
+        onyx_font_parsers
+        stb::stb
+)
 
 # Generate portable export header
 generate_export_header(onyx_font
-        BASE_NAME onyx_font
-        EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/include/onyx_font/export.h
+    BASE_NAME onyx_font
+    EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/include/onyx_font/export.h
 )
 
-# Library properties
+# =============================================================================
+# Library Properties
+# =============================================================================
+
 set_target_properties(onyx_font PROPERTIES
-        OUTPUT_NAME onyx_font
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
+    OUTPUT_NAME onyx_font
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    POSITION_INDEPENDENT_CODE ON
+    FOLDER "Libraries"
 )
 
-# ===========================================================================
-# Strict Compiler Warnings (MSVC, GCC, Clang)
-# ===========================================================================
-if (MSVC)
+# =============================================================================
+# Compiler Warnings
+# =============================================================================
+
+if(MSVC)
     target_compile_options(onyx_font PRIVATE
-            /W4           # Warning level 4 (very strict)
-            /WX           # Treat warnings as errors
-            /permissive-  # Strict standards conformance
-            /w14242       # 'identifier': conversion, possible loss of data
-            /w14254       # 'operator': conversion, possible loss of data
-            /w14263       # Member function does not override any base class virtual member function
-            /w14265       # Class has virtual functions, but destructor is not virtual
-            /w14287       # 'operator': unsigned/negative constant mismatch
-            /we4289       # Nonstandard extension used: 'variable': loop control variable is used outside the for-loop scope
-            /w14296       # 'operator': expression is always 'boolean_value'
-            /w14311       # 'variable': pointer truncation from 'type1' to 'type2'
-            /w14545       # Expression before comma evaluates to a function which is missing an argument list
-            /w14546       # Function call before comma missing argument list
-            /w14547       # 'operator': operator before comma has no effect; expected operator with side-effect
-            /w14549       # 'operator': operator before comma has no effect; did you intend 'operator'?
-            /w14555       # Expression has no effect; expected expression with side-effect
-            /w14619       # Pragma warning: there is no warning number 'number'
-            /w14640       # Enable warning on thread unsafe static member initialization
-            /w14826       # Conversion from 'type1' to 'type2' is sign-extended
-            /w14905       # Wide string literal cast to 'LPSTR'
-            /w14906       # String literal cast to 'LPWSTR'
-            /w14928       # Illegal copy-initialization; more than one user-defined conversion has been implicitly applied
-            /wd4251       # Disable warning about DLL interface for STL types (common in shared libraries)
+        /W4
+        /permissive-
+        /wd4251       # Disable warning about DLL interface for STL types
     )
-else ()
-    # GCC and Clang common warnings
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(onyx_font PRIVATE
-            -Wall                       # Enable most warnings
-            -Wextra                     # Enable extra warnings
-            -Wpedantic                  # Strict ISO C++ compliance
-            -Werror                     # Treat warnings as errors
-            -Wshadow                    # Warn when a variable shadows another
-            -Wnon-virtual-dtor          # Warn when a class with virtual functions has non-virtual destructor
-            -Wold-style-cast            # Warn on C-style casts
-            -Wcast-align                # Warn on potential alignment issues
-            -Wunused                    # Warn on unused entities
-            -Woverloaded-virtual        # Warn when function hides virtual from base class
-            -Wconversion                # Warn on implicit conversions that may alter value
-            -Wsign-conversion           # Warn on sign conversions
-            -Wnull-dereference          # Warn when dereferencing null pointer
-            -Wdouble-promotion          # Warn when float is implicitly promoted to double
-            -Wformat=2                  # Warn on format string issues
-            -Wimplicit-fallthrough      # Warn on fallthrough in switch without annotation
-            -Wmisleading-indentation    # Warn when indentation implies blocks that don't exist
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wshadow
+        -Wconversion
+        -Wsign-conversion
     )
 
-    # GCC-specific warnings
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         target_compile_options(onyx_font PRIVATE
-                -Wduplicated-cond           # Warn on duplicated conditions in if-else chains
-                -Wduplicated-branches       # Warn on duplicated branches in if-else chains
-                -Wlogical-op                # Warn on suspicious uses of logical operators
-                -Wuseless-cast              # Warn on useless casts
-                -Wsuggest-override          # Suggest override for virtual functions
+            -Wduplicated-cond
+            -Wlogical-op
+            -Wnull-dereference
         )
-    endif ()
+    endif()
 
-    # Clang-specific warnings
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         target_compile_options(onyx_font PRIVATE
-                -Wmost                      # Enable most warnings
-                -Wthread-safety             # Thread safety analysis (Clang)
-                -Wno-c++98-compat           # Don't warn about C++98 incompatibility
-                -Wno-c++98-compat-pedantic  # Don't warn about C++98 incompatibility (pedantic)
+            -Wno-unknown-warning-option
         )
-    endif ()
-endif ()
-
-# Namespace alias for FetchContent compatibility
-add_library(onyx::font ALIAS onyx_font)
+    endif()
+endif()

@@ -11,7 +11,7 @@ target_link_libraries(text_rendering_demo
 )
 
 # SDL demos (ImGui demo, text scroller) - require SDL2 or SDL3
-if(ONYX_FONT_BUILD_DEMOS)
+if(NEUTRINO_ONYX_FONT_BUILD_DEMOS)
     add_subdirectory(imgui_demo)
     add_subdirectory(text_scroller)
 endif()

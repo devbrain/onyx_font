@@ -1,85 +1,99 @@
+# =============================================================================
+# onyx_font - Font loading and text rendering library
+# =============================================================================
+
 cmake_minimum_required(VERSION 3.20)
 
-# =============================================================================
-# Project Definition
-# =============================================================================
 project(onyx_font
-        VERSION 1.0.0
-        DESCRIPTION "Font loading and text rendering library for bitmap, vector, and TrueType fonts"
-        LANGUAGES CXX
+    VERSION 1.0.0
+    DESCRIPTION "Font loading and text rendering library for bitmap, vector, and TrueType fonts"
+    LANGUAGES CXX
 )
 
 # =============================================================================
-# Build Options
+# Neutrino CMake Integration
 # =============================================================================
 
-# Determine if this is a top-level project or included via add_subdirectory/FetchContent
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    set(ONYX_FONT_MAIN_PROJECT ON)
-else()
-    set(ONYX_FONT_MAIN_PROJECT OFF)
+include(FetchContent)
+
+if(NOT DEFINED NEUTRINO_CMAKE_DIR)
+    FetchContent_Declare(
+        neutrino_cmake
+        GIT_REPOSITORY https://github.com/devbrain/neutrino-cmake.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(neutrino_cmake)
+    set(NEUTRINO_CMAKE_DIR "${neutrino_cmake_SOURCE_DIR}/cmake")
+    list(APPEND CMAKE_MODULE_PATH "${NEUTRINO_CMAKE_DIR}")
 endif()
 
-# Build configuration options
-option(ONYX_FONT_BUILD_TESTS "Build unit tests" ${ONYX_FONT_MAIN_PROJECT})
-option(ONYX_FONT_BUILD_EXAMPLES "Build example applications" ${ONYX_FONT_MAIN_PROJECT})
-option(ONYX_FONT_BUILD_DEMOS "Build SDL demos (ImGui demo, text scroller)" ${ONYX_FONT_MAIN_PROJECT})
-option(ONYX_FONT_BUILD_DOCS "Build API documentation with Doxygen" OFF)
-option(ONYX_FONT_BUILD_SHARED "Build shared library (ON) or static library (OFF)" ON)
+include(NeutrinoInit)
 
 # =============================================================================
-# Configuration Summary
+# Options
 # =============================================================================
-message(STATUS "")
-message(STATUS "onyx_font configuration:")
-message(STATUS "  Version:          ${PROJECT_VERSION}")
-message(STATUS "  Build type:       ${CMAKE_BUILD_TYPE}")
-message(STATUS "  Main project:     ${ONYX_FONT_MAIN_PROJECT}")
-message(STATUS "  Build tests:      ${ONYX_FONT_BUILD_TESTS}")
-message(STATUS "  Build examples:   ${ONYX_FONT_BUILD_EXAMPLES}")
-message(STATUS "  Build demos:      ${ONYX_FONT_BUILD_DEMOS}")
-message(STATUS "  Build docs:       ${ONYX_FONT_BUILD_DOCS}")
-message(STATUS "  Shared library:   ${ONYX_FONT_BUILD_SHARED}")
-message(STATUS "")
+
+neutrino_define_library_options(onyx_font)
+
+# Additional options
+neutrino_is_top_level(_onyx_font_is_top_level)
+if(_onyx_font_is_top_level)
+    option(NEUTRINO_ONYX_FONT_BUILD_EXAMPLES "Build example applications" ON)
+    option(NEUTRINO_ONYX_FONT_BUILD_DEMOS "Build SDL demos (ImGui demo, text scroller)" ON)
+else()
+    option(NEUTRINO_ONYX_FONT_BUILD_EXAMPLES "Build example applications" OFF)
+    option(NEUTRINO_ONYX_FONT_BUILD_DEMOS "Build SDL demos (ImGui demo, text scroller)" OFF)
+endif()
 
 # =============================================================================
 # C++ Standard
 # =============================================================================
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# =============================================================================
-# Library Type Configuration
-# =============================================================================
-if(ONYX_FONT_BUILD_SHARED)
-    set(BUILD_SHARED_LIBS ON)
-else()
-    set(BUILD_SHARED_LIBS OFF)
-endif()
+# Symbol visibility (hide all by default, like Windows)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 # =============================================================================
-# Subdirectories
+# Output directories
 # =============================================================================
 
-# Core library (always built)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# =============================================================================
+# Main Library
+# =============================================================================
+
 add_subdirectory(src/onyx_font)
 
-# Unit tests (optional)
-if(ONYX_FONT_BUILD_TESTS)
+# =============================================================================
+# Unit Tests
+# =============================================================================
+
+if(NEUTRINO_ONYX_FONT_BUILD_TESTS)
     enable_testing()
-    add_subdirectory(unittest)
+    add_subdirectory(test)
 endif()
 
-# Examples (optional)
-if(ONYX_FONT_BUILD_EXAMPLES)
+# =============================================================================
+# Examples
+# =============================================================================
+
+if(NEUTRINO_ONYX_FONT_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
 # =============================================================================
 # Documentation (Doxygen)
 # =============================================================================
-if(ONYX_FONT_BUILD_DOCS)
+
+if(NEUTRINO_ONYX_FONT_BUILD_DOCS)
     find_package(Doxygen)
 
     if(DOXYGEN_FOUND)
@@ -96,13 +110,31 @@ if(ONYX_FONT_BUILD_DOCS)
         set(DOXYGEN_USE_MDFILE_AS_MAINPAGE "${CMAKE_SOURCE_DIR}/README.md")
 
         doxygen_add_docs(docs
-                ${CMAKE_SOURCE_DIR}/include
-                ${CMAKE_SOURCE_DIR}/README.md
-                COMMENT "Generating API documentation with Doxygen"
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/README.md
+            COMMENT "Generating API documentation with Doxygen"
         )
 
         message(STATUS "Doxygen found: documentation target 'docs' available")
     else()
-        message(WARNING "ONYX_FONT_BUILD_DOCS is ON but Doxygen was not found")
+        message(WARNING "NEUTRINO_ONYX_FONT_BUILD_DOCS is ON but Doxygen was not found")
     endif()
+endif()
+
+# =============================================================================
+# Summary
+# =============================================================================
+
+neutrino_is_top_level(_onyx_font_is_top_level)
+if(_onyx_font_is_top_level)
+    neutrino_print_options(onyx_font)
+    message(STATUS "")
+    message(STATUS "onyx_font ${PROJECT_VERSION} Configuration:")
+    message(STATUS "  C++ Standard:    20")
+    message(STATUS "  Library type:    ${NEUTRINO_ONYX_FONT_BUILD_SHARED}")
+    message(STATUS "  Build tests:     ${NEUTRINO_ONYX_FONT_BUILD_TESTS}")
+    message(STATUS "  Build examples:  ${NEUTRINO_ONYX_FONT_BUILD_EXAMPLES}")
+    message(STATUS "  Build demos:     ${NEUTRINO_ONYX_FONT_BUILD_DEMOS}")
+    message(STATUS "  Build docs:      ${NEUTRINO_ONYX_FONT_BUILD_DOCS}")
+    message(STATUS "")
 endif()
