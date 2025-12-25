@@ -9,115 +9,37 @@ include(FetchContent)
 # Dependencies
 # =============================================================================
 
-set(FETCHCONTENT_QUIET OFF)
-
 # mz-explode - Windows executable format library
-if(NOT TARGET neutrino::libexe)
-    message(STATUS "libexe not found, fetching from GitHub...")
-
-    set(NEUTRINO_MZEXPLODE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(NEUTRINO_MZEXPLODE_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-    set(NEUTRINO_MZEXPLODE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-        mzexplode
-        GIT_REPOSITORY https://github.com/devbrain/mz-explode.git
-        GIT_TAG master
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-    )
-
-    FetchContent_MakeAvailable(mzexplode)
-else()
-    message(STATUS "Using existing libexe (provided by parent project)")
-endif()
+include(${NEUTRINO_CMAKE_DIR}/deps/mz-explode.cmake)
+neutrino_fetch_mzexplode()
 
 # failsafe - Error handling library
-if(NOT TARGET failsafe AND NOT TARGET thirdparty::failsafe)
-    find_package(failsafe QUIET)
-
-    if(NOT failsafe_FOUND)
-        message(STATUS "failsafe not found - fetching from GitHub...")
-
-        set(FAILSAFE_BUILD_TESTS OFF CACHE INTERNAL "")
-        set(FAILSAFE_BUILD_EXAMPLES OFF CACHE INTERNAL "")
-
-        FetchContent_Declare(
-            FAILSAFE
-            GIT_REPOSITORY "https://github.com/devbrain/failsafe.git"
-            GIT_TAG master
-            GIT_PROGRESS TRUE
-            UPDATE_COMMAND ""
-            OVERRIDE_FIND_PACKAGE
-        )
-        FetchContent_MakeAvailable(FAILSAFE)
-    endif()
-endif()
+include(${NEUTRINO_CMAKE_DIR}/deps/failsafe.cmake)
+neutrino_fetch_failsafe()
 
 # DataScript - Binary format parser generator
-if(NOT TARGET ds)
-    message(STATUS "DataScript not found, fetching from GitHub...")
-
-    set(NEUTRINO_DATASCRIPT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(NEUTRINO_DATASCRIPT_BUILD_HOST_TOOLS ON CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-        datascript
-        GIT_REPOSITORY https://github.com/devbrain/datascript.git
-        GIT_TAG master
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-    )
-
-    FetchContent_MakeAvailable(datascript)
-else()
-    message(STATUS "Using existing DataScript (provided by parent project)")
-endif()
+include(${NEUTRINO_CMAKE_DIR}/deps/datascript.cmake)
+neutrino_fetch_datascript()
 
 # euler - Line rasterization library (for vector fonts)
-if(NOT TARGET euler::euler)
-    find_package(euler QUIET)
-
-    if(NOT euler_FOUND)
-        message(STATUS "euler not found, fetching from GitHub...")
-
-        set(NEUTRINO_EULER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(NEUTRINO_EULER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(NEUTRINO_EULER_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
-
-        FetchContent_Declare(
-            euler
-            GIT_REPOSITORY https://github.com/devbrain/euler.git
-            GIT_TAG master
-            GIT_SHALLOW TRUE
-            GIT_PROGRESS TRUE
-        )
-
-        FetchContent_MakeAvailable(euler)
-    endif()
-else()
-    message(STATUS "Using existing euler (provided by parent project)")
-endif()
+include(${NEUTRINO_CMAKE_DIR}/deps/euler.cmake)
+neutrino_fetch_euler()
 
 # stb - Single-file public domain libraries (stb_truetype for TTF parsing)
 if(NOT TARGET stb::stb)
-    message(STATUS "stb not found, fetching from GitHub...")
-
-    FetchContent_Declare(
-        stb
+    include(FetchContent)
+    FetchContent_Declare(stb
         GIT_REPOSITORY https://github.com/nothings/stb.git
         GIT_TAG master
         GIT_SHALLOW TRUE
     )
-
     FetchContent_MakeAvailable(stb)
 
     # Create an interface library for stb headers
     add_library(stb INTERFACE)
     add_library(stb::stb ALIAS stb)
     target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
-else()
-    message(STATUS "Using existing stb (provided by parent project)")
+    neutrino_suppress_warnings(stb)
 endif()
 
 # =============================================================================
@@ -243,33 +165,22 @@ set_target_properties(onyx_font PROPERTIES
 # Compiler Warnings
 # =============================================================================
 
-if(MSVC)
-    target_compile_options(onyx_font PRIVATE
-        /W4
-        /permissive-
-        /wd4251       # Disable warning about DLL interface for STL types
-    )
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(onyx_font PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Wshadow
-        -Wconversion
-        -Wsign-conversion
+neutrino_target_warnings(onyx_font)
+
+# =============================================================================
+# Installation
+# =============================================================================
+
+if(NEUTRINO_ONYX_FONT_INSTALL)
+    include(NeutrinoInstall)
+
+    # Install generated export header
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/onyx_font/export.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/onyx_font
     )
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_compile_options(onyx_font PRIVATE
-            -Wduplicated-cond
-            -Wlogical-op
-            -Wnull-dereference
-        )
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options(onyx_font PRIVATE
-            -Wno-unknown-warning-option
-        )
-    endif()
+    neutrino_install_library(onyx_font
+        NAMESPACE neutrino::
+        COMPATIBILITY SameMajorVersion
+    )
 endif()
