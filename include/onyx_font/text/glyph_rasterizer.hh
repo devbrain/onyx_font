@@ -2,10 +2,9 @@
  * @file glyph_rasterizer.hh
  * @brief Low-level glyph rasterization using euler library.
  *
- * This file provides internal rasterization functions for different
- * font types. It uses the euler library for line rasterization
- * (Bresenham and Wu's algorithm) for vector fonts, and stb_truetype
- * for TTF fonts.
+ * This file provides internal rasterization functions for bitmap
+ * and vector fonts. It uses the euler library for line rasterization
+ * (Bresenham and Wu's algorithm) for vector fonts.
  *
  * @section raster_overview Overview
  *
@@ -25,6 +24,8 @@
  * for direct use. The higher-level APIs (text_rasterizer, glyph_cache)
  * provide more convenient interfaces.
  *
+ * @note TTF font rasterization is handled by font_source using FreeType.
+ *
  * @author Igor
  * @date 21/12/2025
  */
@@ -35,7 +36,6 @@
 #include <onyx_font/text/raster_target.hh>
 #include <onyx_font/bitmap_font.hh>
 #include <onyx_font/vector_font.hh>
-#include <onyx_font/utils/stb_truetype_font.hh>
 #include <euler/dda/line_iterator.hh>
 #include <euler/dda/aa_line_iterator.hh>
 #include <euler/coordinates/point2.hh>
@@ -187,84 +187,4 @@ namespace onyx_font::internal {
         }
     }
 
-    // ============================================================================
-    // TTF font rasterization
-    // ============================================================================
-
-    /**
-     * @brief Rasterize a TTF glyph to a target using stb_truetype.
-     *
-     * Uses the stb_truetype rasterizer which provides high-quality
-     * antialiased output with proper hinting.
-     *
-     * @tparam Target Raster target type
-     * @param font The stb_truetype font wrapper
-     * @param codepoint Unicode codepoint
-     * @param size Pixel height
-     * @param target Raster target
-     * @param x X offset in target
-     * @param y Y offset in target (baseline)
-     * @return true if glyph was rasterized, false if not found
-     */
-    template<raster_target Target>
-    bool rasterize_ttf_glyph(const stb_truetype_font& font,
-                             char32_t codepoint, float size,
-                             Target& target, int x, int y) {
-        auto bitmap = font.rasterize(static_cast<uint32_t>(codepoint), size);
-        if (!bitmap) {
-            return false;
-        }
-
-        // y is baseline, offset_y is negative (distance from baseline to top)
-        int dst_x = x + bitmap->offset_x;
-        int dst_y = y + bitmap->offset_y;
-
-        for (int gy = 0; gy < bitmap->height; ++gy) {
-            for (int gx = 0; gx < bitmap->width; ++gx) {
-                uint8_t alpha = bitmap->bitmap[static_cast<std::size_t>(gy * bitmap->width + gx)];
-                if (alpha > 0) {
-                    target.put_pixel(dst_x + gx, dst_y + gy, alpha);
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * @brief Optimized TTF rasterization using put_span when available.
-     *
-     * Uses the target's put_span method for efficient row-based copying.
-     * This is faster than individual put_pixel calls for targets that
-     * support it.
-     *
-     * @tparam Target Raster target type with span support
-     * @param font The stb_truetype font wrapper
-     * @param codepoint Unicode codepoint
-     * @param size Pixel height
-     * @param target Raster target with put_span support
-     * @param x X offset in target
-     * @param y Y offset in target (baseline)
-     * @return true if glyph was rasterized, false if not found
-     */
-    template<raster_target_with_span Target>
-    bool rasterize_ttf_glyph_span(const stb_truetype_font& font,
-                                  char32_t codepoint, float size,
-                                  Target& target, int x, int y) {
-        auto bitmap = font.rasterize(static_cast<uint32_t>(codepoint), size);
-        if (!bitmap) {
-            return false;
-        }
-
-        int dst_x = x + bitmap->offset_x;
-        int dst_y = y + bitmap->offset_y;
-
-        for (int gy = 0; gy < bitmap->height; ++gy) {
-            target.put_span(dst_x, dst_y + gy,
-                            bitmap->bitmap.data() + static_cast<std::size_t>(gy * bitmap->width),
-                            bitmap->width);
-        }
-
-        return true;
-    }
 } // namespace onyx_font::internal

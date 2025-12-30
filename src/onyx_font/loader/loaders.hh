@@ -28,4 +28,10 @@ namespace onyx_font::internal {
         static vector_font load(std::span<const uint8_t> data);
     };
 
+    /// Load bitmap font from GEM font data (.gft, Genus Microprogramming)
+    struct gem_font_loader {
+        static bitmap_font load(std::span<const uint8_t> data);
+        static bool is_gem_font(std::span<const uint8_t> data);
+    };
+
 }  // namespace onyx_font::internal

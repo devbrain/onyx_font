@@ -6,7 +6,6 @@
 #include <onyx_font/bitmap_font.hh>
 #include <onyx_font/vector_font.hh>
 #include <onyx_font/ttf_font.hh>
-#include <../include/onyx_font/utils/stb_truetype_font.hh>
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
@@ -201,28 +200,6 @@ void dump_ttf_font(const std::string& name, const std::filesystem::path& path) {
             }
         }
 
-        // stb_truetype_font (rasterization)
-        stb_truetype_font stb_font(data);
-        std::cout << "\nstb_truetype_font:\n";
-        std::cout << "  is_valid: " << (stb_font.is_valid() ? "true" : "false") << "\n";
-
-        if (stb_font.is_valid()) {
-            float test_size = 24.0f;
-            std::cout << "  scale_for_pixel_height(" << test_size << "): "
-                      << stb_font.get_scale_for_pixel_height(test_size) << "\n";
-
-            // Rasterize 'A'
-            auto bitmap = stb_font.rasterize('A', test_size);
-            if (bitmap) {
-                std::cout << "  Rasterized 'A' (at " << test_size << "px):\n";
-                std::cout << "    width: " << bitmap->width << "\n";
-                std::cout << "    height: " << bitmap->height << "\n";
-                std::cout << "    advance_x: " << bitmap->advance_x << "\n";
-                std::cout << "    offset_x: " << bitmap->offset_x << "\n";
-                std::cout << "    offset_y: " << bitmap->offset_y << "\n";
-                std::cout << "    bitmap_size: " << bitmap->bitmap.size() << " bytes\n";
-            }
-        }
     } catch (const std::exception& e) {
         std::cout << "  Error: " << e.what() << "\n";
     }

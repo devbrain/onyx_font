@@ -1529,7 +1529,7 @@ if (ch >= font.get_first_char() && ch <= font.get_last_char()) {
 | Header | Classes | Purpose |
 |--------|---------|---------|
 | `utils/bitmap_glyphs_storage.hh` | `bitmap_storage`, `bitmap_view`, `bitmap_builder` | Packed bitmap storage |
-| `utils/stb_truetype_font.hh` | `stb_truetype_font`, `stb_glyph_bitmap` | Low-level TTF rasterization |
+| `utils/freetype_font.hh` | `freetype_font`, `ft_glyph_bitmap`, `ft_render_style` | Low-level TTF rasterization via FreeType |
 
 ---
 

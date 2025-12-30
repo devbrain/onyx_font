@@ -218,6 +218,19 @@ bool font_manager::set_font_size(std::size_t index, float size) {
     return true;
 }
 
+void font_manager::set_style(std::size_t index, onyx_font::text_style style) {
+    if (index < m_fonts.size() && m_fonts[index]->cache) {
+        m_fonts[index]->cache->set_style(style);
+    }
+}
+
+onyx_font::text_style font_manager::get_style(std::size_t index) const {
+    if (index < m_fonts.size() && m_fonts[index]->cache) {
+        return m_fonts[index]->cache->style();
+    }
+    return onyx_font::text_style::normal;
+}
+
 std::vector<std::pair<std::string, std::string>> font_manager::get_test_fonts() {
     std::vector<std::pair<std::string, std::string>> fonts;
 
@@ -253,6 +266,14 @@ std::vector<std::pair<std::string, std::string>> font_manager::get_test_fonts() 
     // OS/2 fonts
     if (auto p = testdata / "os2" / "SYSFONT.DLL"; std::filesystem::exists(p)) {
         fonts.emplace_back("OS/2 System Font", p.string());
+    }
+
+    // GEM fonts (Genus Microprogramming)
+    if (auto p = testdata / "gft" / "HELGA16.GFT"; std::filesystem::exists(p)) {
+        fonts.emplace_back("Helga 16 (GEM Bitmap)", p.string());
+    }
+    if (auto p = testdata / "gft" / "SYSTEM15.GFT"; std::filesystem::exists(p)) {
+        fonts.emplace_back("System 15 (GEM Bitmap)", p.string());
     }
 #endif
 

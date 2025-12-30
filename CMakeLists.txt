@@ -25,14 +25,19 @@ if(NOT DEFINED NEUTRINO_CMAKE_DIR)
     )
     FetchContent_MakeAvailable(neutrino_cmake)
     set(NEUTRINO_CMAKE_DIR "${neutrino_cmake_SOURCE_DIR}/cmake")
-    list(APPEND CMAKE_MODULE_PATH "${NEUTRINO_CMAKE_DIR}")
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${NEUTRINO_CMAKE_DIR}")
 include(NeutrinoInit)
 
 # =============================================================================
 # Options
 # =============================================================================
+
+# Pre-set INSTALL to OFF before neutrino_define_library_options defines it
+# Reason: Dependencies are FetchContent'd and don't support CMake export
+# Installation would require all PUBLIC dependencies to also be installed
+set(NEUTRINO_ONYX_FONT_INSTALL OFF CACHE BOOL "Enable onyx_font installation")
 
 neutrino_define_library_options(onyx_font)
 

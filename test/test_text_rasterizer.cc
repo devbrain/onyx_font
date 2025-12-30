@@ -53,7 +53,6 @@ TEST_SUITE("text_rasterizer") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         text_rasterizer raster(std::move(source));
@@ -114,7 +113,6 @@ TEST_SUITE("text_rasterizer") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         text_rasterizer raster(std::move(source));
@@ -196,7 +194,6 @@ TEST_SUITE("text_rasterizer") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         text_rasterizer raster(std::move(source));
@@ -313,7 +310,6 @@ TEST_SUITE("text_rasterizer") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         text_rasterizer raster(std::move(source));
@@ -325,5 +321,224 @@ TEST_SUITE("text_rasterizer") {
         // AV typically has negative kerning, so should be narrower
         // (This depends on the font having kerning data)
         CHECK(av.width <= aa.width);
+    }
+
+    // ========================================================================
+    // Styling Tests
+    // ========================================================================
+
+    TEST_CASE("style default is normal") {
+        auto data = test_data::load_fon_helva();
+        auto font = font_factory::load_bitmap(data, 0);
+        auto source = font_source::from_bitmap(font);
+
+        text_rasterizer raster(std::move(source));
+        CHECK(raster.style() == text_style::normal);
+
+        auto& render_style = raster.get_render_style();
+        CHECK(!render_style.is_bold());
+        CHECK(!render_style.is_italic());
+        CHECK(!render_style.is_underlined());
+        CHECK(!render_style.is_strikethrough());
+    }
+
+    TEST_CASE("set_style with flags") {
+        auto data = test_data::load_fon_helva();
+        auto font = font_factory::load_bitmap(data, 0);
+        auto source = font_source::from_bitmap(font);
+
+        text_rasterizer raster(std::move(source));
+
+        raster.set_style(text_style::bold);
+        CHECK(raster.style() == text_style::bold);
+        CHECK(raster.get_render_style().is_bold());
+        CHECK(!raster.get_render_style().is_italic());
+
+        raster.set_style(text_style::bold | text_style::italic);
+        CHECK(raster.get_render_style().is_bold());
+        CHECK(raster.get_render_style().is_italic());
+    }
+
+    TEST_CASE("set_style with render_style") {
+        auto data = test_data::load_fon_helva();
+        auto font = font_factory::load_bitmap(data, 0);
+        auto source = font_source::from_bitmap(font);
+
+        text_rasterizer raster(std::move(source));
+
+        render_style style;
+        style.style = text_style::bold | text_style::underline;
+        style.bold_strength = 3;
+        style.italic_shear = 0.3f;
+
+        raster.set_style(style);
+
+        CHECK(raster.get_render_style().is_bold());
+        CHECK(raster.get_render_style().is_underlined());
+        CHECK(raster.get_render_style().bold_strength == 3);
+        CHECK(raster.get_render_style().italic_shear == doctest::Approx(0.3f));
+    }
+
+    TEST_CASE("reset_style") {
+        auto data = test_data::load_fon_helva();
+        auto font = font_factory::load_bitmap(data, 0);
+        auto source = font_source::from_bitmap(font);
+
+        text_rasterizer raster(std::move(source));
+
+        raster.set_style(text_style::bold | text_style::italic);
+        CHECK(raster.style() != text_style::normal);
+
+        raster.reset_style();
+        CHECK(raster.style() == text_style::normal);
+    }
+
+    TEST_CASE("bold ttf produces wider glyphs") {
+        if (!test_data::file_exists(test_data::ttf_arial())) {
+            WARN("Arial TTF not available");
+            return;
+        }
+
+        auto data = test_data::load_ttf_arial();
+        ttf_font ttf(data);
+        auto source = font_source::from_ttf(ttf);
+
+        text_rasterizer raster(std::move(source));
+        raster.set_size(24.0f);
+
+        // Render normal 'A'
+        std::vector<uint8_t> normal_buf(50 * 40, 0);
+        grayscale_target normal_target(normal_buf.data(), 50, 40);
+        raster.rasterize_glyph('A', normal_target, 5, 30);
+
+        int normal_pixels = 0;
+        for (auto p : normal_buf) if (p > 0) normal_pixels++;
+
+        // Render bold 'A'
+        raster.set_style(text_style::bold);
+        std::vector<uint8_t> bold_buf(50 * 40, 0);
+        grayscale_target bold_target(bold_buf.data(), 50, 40);
+        raster.rasterize_glyph('A', bold_target, 5, 30);
+
+        int bold_pixels = 0;
+        for (auto p : bold_buf) if (p > 0) bold_pixels++;
+
+        // Bold should have more pixels due to horizontal spread
+        CHECK(bold_pixels > normal_pixels);
+    }
+
+    TEST_CASE("bitmap fonts ignore bold/italic styling") {
+        auto data = test_data::load_fon_helva();
+        auto font = font_factory::load_bitmap(data, 0);
+        auto source = font_source::from_bitmap(font);
+
+        text_rasterizer raster(std::move(source));
+
+        // Render normal 'A'
+        std::vector<uint8_t> normal_buf(30 * 20, 0);
+        grayscale_target normal_target(normal_buf.data(), 30, 20);
+        auto metrics = raster.get_metrics();
+        raster.rasterize_glyph('A', normal_target, 2, static_cast<int>(metrics.ascent));
+
+        // Render "bold" 'A' (should be same for bitmap)
+        raster.set_style(text_style::bold);
+        std::vector<uint8_t> bold_buf(30 * 20, 0);
+        grayscale_target bold_target(bold_buf.data(), 30, 20);
+        raster.rasterize_glyph('A', bold_target, 2, static_cast<int>(metrics.ascent));
+
+        // Should be identical for bitmap fonts
+        CHECK(normal_buf == bold_buf);
+    }
+
+    TEST_CASE("underline renders horizontal line") {
+        if (!test_data::file_exists(test_data::ttf_arial())) {
+            WARN("Arial TTF not available");
+            return;
+        }
+
+        auto data = test_data::load_ttf_arial();
+        ttf_font ttf(data);
+        auto source = font_source::from_ttf(ttf);
+
+        text_rasterizer raster(std::move(source));
+        raster.set_size(24.0f);
+        raster.set_style(text_style::underline);
+
+        std::vector<uint8_t> buf(100 * 40, 0);
+        grayscale_target target(buf.data(), 100, 40);
+
+        auto metrics = raster.get_metrics();
+        raster.rasterize_text("Hi", target, 5, static_cast<int>(metrics.ascent) + 5);
+
+        // Check that pixels exist below the baseline (where underline should be)
+        int underline_y = static_cast<int>(metrics.ascent) + 5 + calc_underline_offset(metrics.descent);
+        int underline_pixels = 0;
+        for (int x = 0; x < 100; ++x) {
+            if (buf[static_cast<size_t>(underline_y * 100 + x)] > 0) {
+                underline_pixels++;
+            }
+        }
+
+        CHECK(underline_pixels > 10);  // Should have a horizontal line
+    }
+
+    TEST_CASE("strikethrough renders through middle") {
+        if (!test_data::file_exists(test_data::ttf_arial())) {
+            WARN("Arial TTF not available");
+            return;
+        }
+
+        auto data = test_data::load_ttf_arial();
+        ttf_font ttf(data);
+        auto source = font_source::from_ttf(ttf);
+
+        text_rasterizer raster(std::move(source));
+        raster.set_size(24.0f);
+        raster.set_style(text_style::strikethrough);
+
+        std::vector<uint8_t> buf(100 * 40, 0);
+        grayscale_target target(buf.data(), 100, 40);
+
+        auto metrics = raster.get_metrics();
+        int baseline = static_cast<int>(metrics.ascent) + 5;
+        raster.rasterize_text("Hi", target, 5, baseline);
+
+        // Strikethrough should be above baseline (negative offset)
+        int strike_y = baseline + calc_strikethrough_offset(metrics.ascent);
+        int strike_pixels = 0;
+        for (int x = 0; x < 100; ++x) {
+            if (strike_y >= 0 && strike_y < 40 &&
+                buf[static_cast<size_t>(strike_y * 100 + x)] > 0) {
+                strike_pixels++;
+            }
+        }
+
+        CHECK(strike_pixels > 10);  // Should have a horizontal line
+    }
+
+    TEST_CASE("combined styles work together") {
+        if (!test_data::file_exists(test_data::ttf_arial())) {
+            WARN("Arial TTF not available");
+            return;
+        }
+
+        auto data = test_data::load_ttf_arial();
+        ttf_font ttf(data);
+        auto source = font_source::from_ttf(ttf);
+
+        text_rasterizer raster(std::move(source));
+        raster.set_size(24.0f);
+        raster.set_style(text_style::bold | text_style::underline);
+
+        std::vector<uint8_t> buf(100 * 40, 0);
+        grayscale_target target(buf.data(), 100, 40);
+
+        auto metrics = raster.get_metrics();
+        raster.rasterize_text("Hi", target, 5, static_cast<int>(metrics.ascent) + 5);
+
+        // Should have rendered something
+        int total_pixels = 0;
+        for (auto p : buf) if (p > 0) total_pixels++;
+        CHECK(total_pixels > 0);
     }
 }

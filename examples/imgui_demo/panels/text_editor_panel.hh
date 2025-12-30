@@ -12,6 +12,7 @@
 
 #include "demo_panel.hh"
 #include <onyx_font/text/types.hh>
+#include <onyx_font/text/text_style.hh>
 #include <string>
 #include <array>
 
@@ -40,12 +41,16 @@ public:
     /// Get wrap width
     [[nodiscard]] float wrap_width() const { return m_wrap_width; }
 
+    /// Get current text style
+    [[nodiscard]] onyx_font::text_style style() const { return m_style; }
+
 private:
     std::string m_text;
     onyx_font::text_align m_alignment = onyx_font::text_align::left;
     std::array<float, 4> m_color = {1.0f, 1.0f, 1.0f, 1.0f};
     bool m_wrap_enabled = false;
     float m_wrap_width = 300.0f;
+    onyx_font::text_style m_style = onyx_font::text_style::normal;
 };
 
 } // namespace imgui_demo

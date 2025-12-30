@@ -15,7 +15,7 @@
  * - Support for complex scripts and large character sets
  *
  * For rasterization (converting outlines to pixels), use:
- * - stb_truetype_font for direct bitmap rendering
+ * - font_source with text_rasterizer for high-quality rendering via FreeType
  * - font_converter to create a bitmap_font at a specific size
  *
  * @section ttf_coords Coordinate System
@@ -322,7 +322,7 @@ namespace onyx_font {
      *
      * @see font_factory For loading TTF fonts
      * @see font_converter For converting TTF to bitmap_font
-     * @see stb_truetype_font For direct rasterization
+     * @see font_source For high-quality rendering via FreeType
      */
     class ONYX_FONT_EXPORT ttf_font {
     public:

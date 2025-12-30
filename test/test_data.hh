@@ -74,6 +74,16 @@ namespace onyx_font::test {
             return base_path() / "os2" / "SYSFONT.DLL";
         }
 
+        /// GEM font file (Genus Microprogramming)
+        [[nodiscard]] static std::filesystem::path gft_helga16() {
+            return base_path() / "gft" / "HELGA16.GFT";
+        }
+
+        /// GEM font file (SYSTEM15)
+        [[nodiscard]] static std::filesystem::path gft_system15() {
+            return base_path() / "gft" / "SYSTEM15.GFT";
+        }
+
         // =====================================================================
         // File loading utilities
         // =====================================================================
@@ -139,6 +149,16 @@ namespace onyx_font::test {
         /// Load OS/2 system font
         [[nodiscard]] static std::vector<uint8_t> load_fon_os2_sysfont() {
             return load_file(fon_os2_sysfont());
+        }
+
+        /// Load GEM font (HELGA16)
+        [[nodiscard]] static std::vector<uint8_t> load_gft_helga16() {
+            return load_file(gft_helga16());
+        }
+
+        /// Load GEM font (SYSTEM15)
+        [[nodiscard]] static std::vector<uint8_t> load_gft_system15() {
+            return load_file(gft_system15());
         }
 
         // =====================================================================

@@ -81,31 +81,6 @@ TEST_SUITE("glyph_rasterizer") {
         CHECK(has_aa);
     }
 
-    TEST_CASE("rasterize TTF glyph") {
-        if (!test_data::file_exists(test_data::ttf_arial())) {
-            WARN("Arial TTF not available");
-            return;
-        }
-
-        auto data = test_data::load_ttf_arial();
-        stb_truetype_font font(data);
-        REQUIRE(font.is_valid());
-
-        uint8_t buffer[30 * 30] = {0};
-        grayscale_target target(buffer, 30, 30);
-
-        bool success = rasterize_ttf_glyph(font, 'A', 24.0f, target, 5, 25);
-
-        CHECK(success);
-
-        // stb_truetype produces antialiased output
-        bool has_aa = false;
-        for (auto b : buffer) {
-            if (b > 0 && b < 255) has_aa = true;
-        }
-        CHECK(has_aa);
-    }
-
     TEST_CASE("scaling vector glyph") {
         auto data = test_data::load_bgi_litt();
         auto font = font_factory::load_vector(data, 0);

@@ -14,6 +14,7 @@
 #include <onyx_font/text/glyph_cache.hh>
 #include <onyx_font/text/atlas_surface.hh>
 #include <onyx_font/text/text_renderer.hh>
+#include <onyx_font/text/text_style.hh>
 
 #include <memory>
 #include <string>
@@ -85,6 +86,16 @@ public:
     /// @param size New size in pixels
     /// @return true if size was changed
     bool set_font_size(std::size_t index, float size);
+
+    /// Set text style for rendering
+    /// @param index Font index
+    /// @param style Style flags (bold, italic, underline, strikethrough)
+    void set_style(std::size_t index, onyx_font::text_style style);
+
+    /// Get current text style
+    /// @param index Font index
+    /// @return Current style flags
+    [[nodiscard]] onyx_font::text_style get_style(std::size_t index) const;
 
     /// Get list of available test fonts
     [[nodiscard]] static std::vector<std::pair<std::string, std::string>>

@@ -23,6 +23,7 @@ TEST_SUITE("font_factory") {
         CHECK(font_factory::format_name(container_format::FON_PE) == "Windows 32/64-bit Font Resource");
         CHECK(font_factory::format_name(container_format::FON_LX) == "OS/2 Font Resource");
         CHECK(font_factory::format_name(container_format::BGI) == "Borland Graphics Interface");
+        CHECK(font_factory::format_name(container_format::GEM) == "GEM Font");
     }
 
     TEST_CASE("type_name returns valid strings") {
@@ -553,5 +554,76 @@ TEST_SUITE("font_factory") {
             REQUIRE(spacing.b_space.has_value());
             CHECK(*spacing.b_space == 8);
         }
+    }
+
+    // =========================================================================
+    // GEM Font Tests
+    // =========================================================================
+
+    TEST_CASE("analyze GEM font file") {
+        REQUIRE(test_data::file_exists(test_data::gft_helga16()));
+
+        auto data = test_data::load_gft_helga16();
+        CHECK(data.size() == 3576);
+
+        auto info = font_factory::analyze(data);
+
+        CHECK(info.format == container_format::GEM);
+        REQUIRE(info.fonts.size() == 1);
+
+        const auto& font = info.fonts[0];
+        CHECK(font.type == font_type::BITMAP);
+        CHECK(font.pixel_height == 16);
+        CHECK(font.weight == 400);
+        CHECK(font.italic == false);
+    }
+
+    TEST_CASE("load_bitmap from GEM file") {
+        REQUIRE(test_data::file_exists(test_data::gft_helga16()));
+
+        auto data = test_data::load_gft_helga16();
+        auto font = font_factory::load_bitmap(data, 0);
+
+        CHECK(!font.get_name().empty());
+        CHECK(font.get_first_char() <= font.get_last_char());
+        CHECK(font.get_metrics().pixel_height == 16);
+        CHECK(font.get_metrics().max_width > 0);
+    }
+
+    TEST_CASE("load_all_bitmaps from GEM file") {
+        REQUIRE(test_data::file_exists(test_data::gft_system15()));
+
+        auto data = test_data::load_gft_system15();
+        auto fonts = font_factory::load_all_bitmaps(data);
+
+        REQUIRE(fonts.size() == 1);
+
+        const auto& font = fonts[0];
+        CHECK(!font.get_name().empty());
+        CHECK(font.get_metrics().pixel_height == 15);
+    }
+
+    TEST_CASE("GEM font glyph extraction") {
+        REQUIRE(test_data::file_exists(test_data::gft_helga16()));
+
+        auto data = test_data::load_gft_helga16();
+        auto font = font_factory::load_bitmap(data, 0);
+
+        // Check that we have glyphs and they have pixels
+        bool has_pixels = false;
+        for (int ch = font.get_first_char(); ch <= font.get_last_char(); ++ch) {
+            auto glyph = font.get_glyph(static_cast<uint8_t>(ch));
+            if (glyph.width() > 0 && glyph.height() > 0) {
+                for (uint16_t y = 0; y < glyph.height() && !has_pixels; ++y) {
+                    for (uint16_t x = 0; x < glyph.width() && !has_pixels; ++x) {
+                        if (glyph.pixel(x, y)) {
+                            has_pixels = true;
+                        }
+                    }
+                }
+            }
+            if (has_pixels) break;
+        }
+        CHECK(has_pixels);
     }
 }

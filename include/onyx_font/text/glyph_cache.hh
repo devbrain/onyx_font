@@ -283,6 +283,55 @@ namespace onyx_font {
         }
 
         /**
+         * @brief Set text style for rendering.
+         *
+         * Changes the style used for glyph rasterization. This clears
+         * the glyph cache since existing glyphs were rendered with the
+         * old style.
+         *
+         * @param style New text style flags
+         */
+        void set_style(text_style style) {
+            if (m_rasterizer.style() != style) {
+                m_rasterizer.set_style(style);
+                clear();
+            }
+        }
+
+        /**
+         * @brief Set detailed render style.
+         *
+         * @param style Render style with fine-grained options
+         */
+        void set_style(const render_style& style) {
+            m_rasterizer.set_style(style);
+            clear();
+        }
+
+        /**
+         * @brief Get current text style.
+         * @return Current style flags
+         */
+        [[nodiscard]] text_style style() const noexcept {
+            return m_rasterizer.style();
+        }
+
+        /**
+         * @brief Clear the glyph cache.
+         *
+         * Removes all cached glyphs but keeps atlas textures allocated.
+         * Call this after changing style or when memory needs to be freed.
+         */
+        void clear() {
+            m_cache.clear();
+            m_atlases.clear();
+            add_atlas();
+            if (m_config.pre_cache_ascii) {
+                cache_range(32, 126);
+            }
+        }
+
+        /**
          * @brief Measure text (delegates to rasterizer).
          *
          * @param text UTF-8 encoded text

@@ -8,7 +8,7 @@ A modern C++20 library for loading, manipulating, and rendering fonts from multi
 
 ## Features
 
-- **Multi-format support** - Load fonts from TTF, OTF, TTC, Windows FON/FNT, and Borland BGI files
+- **Multi-format support** - Load fonts from TTF, OTF, TTC, Windows FON/FNT, GEM, and Borland BGI files
 - **Automatic format detection** - Analyze font containers and enumerate embedded fonts
 - **High-quality rendering** - Antialiased text rasterization with subpixel positioning
 - **GPU-friendly architecture** - Texture atlas with glyph caching for hardware-accelerated rendering
@@ -27,6 +27,7 @@ A modern C++20 library for loading, manipulating, and rendering fonts from multi
 | Windows NE FON | .fon | 16-bit Windows executable with font resources |
 | Windows PE FON | .fon | 32/64-bit Windows executable with font resources |
 | Windows FNT | .fnt | Raw Windows font resource |
+| GEM | .fnt, .gft | GEM/Atari ST bitmap font |
 | Borland BGI | .chr | Borland Graphics Interface stroke font |
 | Raw BIOS | .bin | VGA/EGA font dumps (8x8, 8x14, 8x16) |
 
@@ -219,7 +220,8 @@ Contributions are welcome. Please ensure that:
 
 This library uses the following open-source components:
 
-- [stb_truetype](https://github.com/nothings/stb) - TrueType font rasterization
+- [stb_truetype](https://github.com/nothings/stb) - TrueType font parsing (metrics and outline extraction)
+- [FreeType](https://freetype.org/) - High-quality TrueType font rasterization with hinting
 - [mzexplode](https://github.com/devbrain/mz-explode) - NE/PE/LX executable parsing
 - [datascript](https://github.com/devbrain/datascript) - Binary data structure parsing
 - [euler](https://github.com/devbrain/euler) - Line rasterization algorithms

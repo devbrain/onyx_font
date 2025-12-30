@@ -61,10 +61,11 @@
 #include <onyx_font/export.h>
 #include <onyx_font/text/types.hh>
 #include <onyx_font/text/raster_target.hh>
+#include <onyx_font/text/text_style.hh>
 #include <onyx_font/bitmap_font.hh>
 #include <onyx_font/vector_font.hh>
 #include <onyx_font/ttf_font.hh>
-#include <onyx_font/utils/stb_truetype_font.hh>
+#include <onyx_font/utils/freetype_font.hh>
 #include <memory>
 #include <variant>
 
@@ -233,6 +234,25 @@ namespace onyx_font {
         void rasterize_glyph(char32_t codepoint, float size,
                              Target& target, int x, int y) const;
 
+        /**
+         * @brief Rasterize a single glyph with styling (for vector fonts).
+         *
+         * Renders the specified glyph with style effects applied.
+         * Only meaningful for vector fonts; other font types ignore style.
+         *
+         * @tparam Target Raster target type
+         * @param codepoint Unicode codepoint
+         * @param size Pixel height for rendering
+         * @param target Raster target to write to
+         * @param x X position in target
+         * @param y Y position (baseline)
+         * @param style Rendering style options
+         */
+        template<raster_target Target>
+        void rasterize_styled_glyph(char32_t codepoint, float size,
+                                    Target& target, int x, int y,
+                                    const render_style& style) const;
+
     private:
         /// Internal representation for bitmap font reference
         struct bitmap_ref {
@@ -251,8 +271,8 @@ namespace onyx_font {
 
         std::variant<bitmap_ref, vector_ref, ttf_ref> m_font;
 
-        /// Owned rasterizer for TTF fonts (created internally by from_ttf)
-        std::unique_ptr<stb_truetype_font> m_rasterizer;
+        /// Owned rasterizer for TTF fonts (FreeType-based)
+        std::unique_ptr<freetype_font> m_rasterizer;
 
         font_source() = default;
 
@@ -266,9 +286,20 @@ namespace onyx_font {
                                     void (*put_pixel)(void*, int, int, uint8_t),
                                     int width, int height) const;
 
+        void rasterize_styled_vector_glyph(char32_t codepoint, float size,
+                                           void* target, int x, int y,
+                                           void (*put_pixel)(void*, int, int, uint8_t),
+                                           int width, int height,
+                                           const render_style& style) const;
+
         void rasterize_ttf_glyph(char32_t codepoint, float size,
                                  void* target, int x, int y,
                                  void (*put_pixel)(void*, int, int, uint8_t)) const;
+
+        void rasterize_styled_ttf_glyph(char32_t codepoint, float size,
+                                        void* target, int x, int y,
+                                        void (*put_pixel)(void*, int, int, uint8_t),
+                                        const render_style& style) const;
     };
 
     // Template implementation
@@ -287,6 +318,36 @@ namespace onyx_font {
                                    target.width(), target.height());
         } else {
             rasterize_ttf_glyph(codepoint, size, &target, x, y, put_pixel);
+        }
+    }
+
+    template<raster_target Target>
+    void font_source::rasterize_styled_glyph(char32_t codepoint, float size,
+                                              Target& target, int x, int y,
+                                              const render_style& style) const {
+        auto put_pixel = [](void* ctx, int px, int py, uint8_t alpha) {
+            static_cast<Target*>(ctx)->put_pixel(px, py, alpha);
+        };
+
+        if (std::holds_alternative<bitmap_ref>(m_font)) {
+            // Bitmap fonts don't support styling
+            rasterize_bitmap_glyph(codepoint, size, &target, x, y, put_pixel);
+        } else if (std::holds_alternative<vector_ref>(m_font)) {
+            // Vector fonts use stroke-based styling
+            if (style.needs_glyph_transform()) {
+                rasterize_styled_vector_glyph(codepoint, size, &target, x, y, put_pixel,
+                                              target.width(), target.height(), style);
+            } else {
+                rasterize_vector_glyph(codepoint, size, &target, x, y, put_pixel,
+                                       target.width(), target.height());
+            }
+        } else {
+            // TTF fonts use FreeType's proper bold/italic synthesis
+            if (style.needs_glyph_transform()) {
+                rasterize_styled_ttf_glyph(codepoint, size, &target, x, y, put_pixel, style);
+            } else {
+                rasterize_ttf_glyph(codepoint, size, &target, x, y, put_pixel);
+            }
         }
     }
 } // namespace onyx_font

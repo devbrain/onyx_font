@@ -16,6 +16,7 @@
 #endif
 #endif
 
+#define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -106,25 +107,35 @@ namespace onyx_font {
 
         ttf_glyph_metrics result{};
 
-        // Get bounding box (unscaled)
-        int ix0, iy0, ix1, iy1;
-        stbtt_GetGlyphBox(&m_impl->font_info, glyph_index, &ix0, &iy0, &ix1, &iy1);
+        // Use stbtt_GetGlyphBitmapBox to get the actual pixel dimensions
+        // that stbtt_GetGlyphBitmap would produce. This applies floor/ceil
+        // to the scaled bounding box, matching the actual rasterized output.
+        int bx0, by0, bx1, by1;
+        stbtt_GetGlyphBitmapBox(&m_impl->font_info, glyph_index, scale, scale,
+                                &bx0, &by0, &bx1, &by1);
 
-        // Scale to pixels
-        result.x0 = static_cast<float>(ix0) * scale;
-        result.y0 = static_cast<float>(iy0) * scale;
-        result.x1 = static_cast<float>(ix1) * scale;
-        result.y1 = static_cast<float>(iy1) * scale;
+        // bitmap box coordinates are relative to glyph origin (pen position)
+        // bx0, by0 = top-left offset from origin (by0 is typically negative)
+        // bx1, by1 = bottom-right offset from origin
+        result.x0 = static_cast<float>(bx0);
+        result.y0 = static_cast<float>(by0);
+        result.x1 = static_cast<float>(bx1);
+        result.y1 = static_cast<float>(by1);
 
-        result.width = result.x1 - result.x0;
-        result.height = result.y1 - result.y0;
+        result.width = static_cast<float>(bx1 - bx0);
+        result.height = static_cast<float>(by1 - by0);
 
         // Get horizontal metrics
         int advance_width, left_bearing;
         stbtt_GetGlyphHMetrics(&m_impl->font_info, glyph_index, &advance_width, &left_bearing);
         result.advance_x = static_cast<float>(advance_width) * scale;
-        result.bearing_x = static_cast<float>(left_bearing) * scale;
-        result.bearing_y = result.y1;  // Top of glyph relative to baseline
+
+        // bearing_x = left edge of bitmap relative to pen position = bx0
+        result.bearing_x = static_cast<float>(bx0);
+
+        // bearing_y = distance from baseline to top of glyph = -by0
+        // (by0 is negative for glyphs above baseline)
+        result.bearing_y = static_cast<float>(-by0);
 
         return result;
     }

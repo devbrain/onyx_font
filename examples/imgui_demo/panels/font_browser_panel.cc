@@ -25,10 +25,11 @@ void font_browser_panel::render(demo_app& app) {
     if (ImGui::Button("Browse...")) {
         nfdu8char_t* path = nullptr;
         nfdu8filteritem_t filters[] = {
-            {"Font Files", "ttf,otf,fon,fnt,chr"},
+            {"Font Files", "ttf,otf,fon,fnt,chr,gft"},
             {"TrueType", "ttf,otf"},
             {"Windows Bitmap", "fon,fnt"},
-            {"BGI Vector", "chr"}
+            {"BGI Vector", "chr"},
+            {"GEM Bitmap", "gft"}
         };
 
         nfdopendialogu8args_t args = {0};

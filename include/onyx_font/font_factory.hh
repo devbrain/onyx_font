@@ -196,7 +196,8 @@ namespace onyx_font {
         FON_PE,    ///< Windows 32/64-bit PE executable (.fon) - one or more fonts
         FON_LX,    ///< OS/2 LX executable with font resources
 
-        BGI        ///< Borland Graphics Interface (.chr) - vector stroke font
+        BGI,       ///< Borland Graphics Interface (.chr) - vector stroke font
+        GEM        ///< GEM/Genus bitmap font (.gft, .fnt)
     };
 
     /**

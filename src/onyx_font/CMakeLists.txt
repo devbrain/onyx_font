@@ -25,22 +25,25 @@ neutrino_fetch_datascript()
 include(${NEUTRINO_CMAKE_DIR}/deps/euler.cmake)
 neutrino_fetch_euler()
 
-# stb - Single-file public domain libraries (stb_truetype for TTF parsing)
-if(NOT TARGET stb::stb)
+# FreeType - High-quality font rendering with proper hinting and styling
+if(NOT TARGET freetype)
     include(FetchContent)
-    FetchContent_Declare(stb
-        GIT_REPOSITORY https://github.com/nothings/stb.git
-        GIT_TAG master
+
+    # Disable all optional dependencies for minimal portable build
+    set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
+    set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
+    set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
+    set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+    set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(freetype
+        GIT_REPOSITORY https://github.com/freetype/freetype.git
+        GIT_TAG VER-2-13-3
         GIT_SHALLOW TRUE
     )
-    FetchContent_MakeAvailable(stb)
-
-    # Create an interface library for stb headers
-    add_library(stb INTERFACE)
-    add_library(stb::stb ALIAS stb)
-    target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
-    neutrino_suppress_warnings(stb)
+    FetchContent_MakeAvailable(freetype)
 endif()
+
 
 # =============================================================================
 # DataScript Code Generation
@@ -50,6 +53,7 @@ datascript_generate(
     TARGET onyx_font_parsers
     SCHEMAS
         ${CMAKE_CURRENT_SOURCE_DIR}/formats/bgi.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/gem.ds
     OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
     INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
@@ -81,8 +85,8 @@ target_sources(onyx_font PRIVATE
     ttf_font.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/ttf_font.hh
 
-    utils/stb_truetype_font.cc
-    ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/stb_truetype_font.hh
+    utils/freetype_font.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/freetype_font.hh
 
     font_factory.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/font_factory.hh
@@ -92,6 +96,7 @@ target_sources(onyx_font PRIVATE
 
     loader/win_vector_fon.cc
     loader/bgi_fon.cc
+    loader/gem_fon.cc
 
     utils/bitmap_glyphs_storage.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/bitmap_glyphs_storage.hh
@@ -135,12 +140,12 @@ target_include_directories(onyx_font
 
 target_link_libraries(onyx_font
     PUBLIC
-        failsafe
         euler::euler
     PRIVATE
+        failsafe
         neutrino::libexe
         onyx_font_parsers
-        stb::stb
+        freetype
 )
 
 # Generate portable export header

@@ -5,7 +5,6 @@
 //
 
 #include <onyx_font/font_factory.hh>
-#include <../../include/onyx_font/utils/stb_truetype_font.hh>
 #include <onyx_font/ttf_font.hh>
 #include <onyx_font/text/font_source.hh>
 #include <onyx_font/text/glyph_cache.hh>

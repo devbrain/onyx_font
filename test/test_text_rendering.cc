@@ -27,7 +27,6 @@ TEST_SUITE("text_rendering_integration") {
         // Load font
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         // Create cache and renderer
@@ -167,7 +166,6 @@ TEST_SUITE("text_rendering_integration") {
 
         auto ttf_data = test_data::load_ttf_arial();
         ttf_font ttf(ttf_data);
-        stb_truetype_font stb(ttf_data);
         auto ttf_source = font_source::from_ttf(ttf);
 
         auto bitmap_data = test_data::load_fon_helva();
@@ -305,7 +303,6 @@ TEST_SUITE("text_rendering_integration") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         glyph_cache<memory_atlas> cache(std::move(source), 24.0f);

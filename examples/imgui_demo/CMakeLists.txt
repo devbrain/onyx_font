@@ -141,13 +141,13 @@ target_compile_features(imgui_font_demo PRIVATE cxx_std_20)
 
 # Pass test data directory for built-in fonts
 target_compile_definitions(imgui_font_demo PRIVATE
-    TESTDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../unittest/testdata"
+    TESTDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../test/testdata"
 )
 
 # Copy fonts to build directory for convenience
 add_custom_command(TARGET imgui_font_demo POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../unittest/testdata"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../test/testdata"
         "$<TARGET_FILE_DIR:imgui_font_demo>/fonts"
     COMMENT "Copying test fonts to build directory"
 )

@@ -5,7 +5,7 @@
 //
 
 #include <onyx_font/font_converter.hh>
-#include <../../include/onyx_font/utils/stb_truetype_font.hh>
+#include <onyx_font/utils/freetype_font.hh>
 #include <onyx_font/text/glyph_rasterizer.hh>
 #include <onyx_font/text/raster_target.hh>
 #include <cmath>
@@ -188,8 +188,8 @@ bitmap_font font_converter::from_ttf(
         return result;
     }
 
-    // Create rasterizer from font data
-    stb_truetype_font rasterizer(font.data(), font.font_index());
+    // Create FreeType rasterizer from font data
+    freetype_font rasterizer(font.data(), font.font_index());
     if (!rasterizer.is_valid()) {
         return result;
     }
@@ -253,7 +253,7 @@ bitmap_font font_converter::from_ttf(
     for (uint8_t ch = first_char; ch <= last_char; ++ch) {
         size_t idx = ch - first_char;
 
-        // Try to rasterize the glyph
+        // Try to rasterize the glyph using FreeType
         auto bitmap = rasterizer.rasterize(static_cast<uint32_t>(ch), pixel_height);
 
         if (!bitmap || bitmap->width == 0 || bitmap->height == 0) {
@@ -285,7 +285,7 @@ bitmap_font font_converter::from_ttf(
             }
         }
 
-        // Set spacing info based on STB offsets
+        // Set spacing info based on FreeType offsets
         result.m_spacing[idx].a_space = static_cast<int16_t>(bitmap->offset_x);
         result.m_spacing[idx].b_space = static_cast<uint16_t>(glyph_w);
 

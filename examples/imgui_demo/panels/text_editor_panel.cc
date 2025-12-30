@@ -73,6 +73,35 @@ void text_editor_panel::render(demo_app& app) {
         ImGui::SliderFloat("Wrap Width", &m_wrap_width, 100.0f, 600.0f, "%.0f px");
     }
 
+    // Styling
+    ImGui::SeparatorText("Style");
+
+    bool bold = onyx_font::has_style(m_style, onyx_font::text_style::bold);
+    bool italic = onyx_font::has_style(m_style, onyx_font::text_style::italic);
+    bool underline = onyx_font::has_style(m_style, onyx_font::text_style::underline);
+    bool strikethrough = onyx_font::has_style(m_style, onyx_font::text_style::strikethrough);
+
+    bool style_changed = false;
+    if (ImGui::Checkbox("Bold", &bold)) style_changed = true;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Italic", &italic)) style_changed = true;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Underline", &underline)) style_changed = true;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Strikethrough", &strikethrough)) style_changed = true;
+
+    if (style_changed) {
+        m_style = onyx_font::text_style::normal;
+        if (bold) m_style = m_style | onyx_font::text_style::bold;
+        if (italic) m_style = m_style | onyx_font::text_style::italic;
+        if (underline) m_style = m_style | onyx_font::text_style::underline;
+        if (strikethrough) m_style = m_style | onyx_font::text_style::strikethrough;
+
+        // Apply style to font manager
+        app.fonts().set_style(app.active_font(), m_style);
+        app.invalidate_renderer();
+    }
+
     // Color picker
     ImGui::SeparatorText("Color");
 

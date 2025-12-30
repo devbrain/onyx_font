@@ -49,7 +49,6 @@ TEST_SUITE("font_source") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
 
         auto source = font_source::from_ttf(ttf);
         CHECK(source.type() == font_source_type::outline);
@@ -88,7 +87,6 @@ TEST_SUITE("font_source") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         auto metrics = source.get_scaled_metrics(24.0f);
@@ -127,7 +125,6 @@ TEST_SUITE("font_source") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         auto metrics = source.get_glyph_metrics('A', 24.0f);
@@ -144,7 +141,6 @@ TEST_SUITE("font_source") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         // A-V typically has negative kerning, A-A typically has 0
@@ -224,7 +220,6 @@ TEST_SUITE("font_source") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         uint8_t buffer[40 * 40] = {0};

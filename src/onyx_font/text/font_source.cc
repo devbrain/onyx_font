@@ -5,6 +5,7 @@
 #include <onyx_font/text/font_source.hh>
 #include <euler/dda/line_iterator.hh>
 #include <euler/dda/aa_line_iterator.hh>
+#include <euler/dda/thick_line_iterator.hh>
 #include <euler/coordinates/point2.hh>
 #include <algorithm>
 #include <cmath>
@@ -26,8 +27,8 @@ font_source font_source::from_vector(const vector_font& font) {
 font_source font_source::from_ttf(const ttf_font& font) {
     font_source source;
     source.m_font = ttf_ref{&font};
-    // Create owned rasterizer from the font's data
-    source.m_rasterizer = std::make_unique<stb_truetype_font>(
+    // Create FreeType rasterizer for high-quality rendering with proper hinting
+    source.m_rasterizer = std::make_unique<freetype_font>(
         font.data(), font.font_index());
     return source;
 }
@@ -282,6 +283,33 @@ void draw_line_aa(void* target, float x0, float y0, float x1, float y1,
     }
 }
 
+void draw_line_thick(void* target, float x0, float y0, float x1, float y1,
+                     float thickness,
+                     void (*put_pixel)(void*, int, int, uint8_t),
+                     int width, int height) {
+    // Use euler's thick line iterator for bold strokes
+    euler::point2f start{x0, y0};
+    euler::point2f end{x1, y1};
+
+    auto line = euler::dda::thick_line_iterator<float>(start, end, thickness);
+    while (line != euler::dda::thick_line_iterator<float>::end()) {
+        auto pixel = *line;
+        int px = pixel.pos.x;
+        int py = pixel.pos.y;
+        if (px >= 0 && px < width && py >= 0 && py < height) {
+            put_pixel(target, px, py, 255);
+        }
+        ++line;
+    }
+}
+
+// Apply shear transformation for italic effect
+// shear_x = x + shear * (origin_y - y)
+// origin_y is the baseline, so points above baseline shift right
+inline float apply_shear(float x, float y, float origin_y, float shear) {
+    return x + shear * (origin_y - y);
+}
+
 } // anonymous namespace
 
 void font_source::rasterize_vector_glyph(char32_t codepoint, float size,
@@ -346,21 +374,135 @@ void font_source::rasterize_vector_glyph(char32_t codepoint, float size,
 void font_source::rasterize_ttf_glyph(char32_t codepoint, float size,
                                        void* target, int x, int y,
                                        void (*put_pixel)(void*, int, int, uint8_t)) const {
-    if (!m_rasterizer) return;
+    if (!m_rasterizer || !m_rasterizer->is_valid()) return;
+
+    // Use FreeType for high-quality rendering with proper hinting
     auto bitmap = m_rasterizer->rasterize(static_cast<uint32_t>(codepoint), size);
 
     if (!bitmap) return;
 
-    // y is baseline, offset_y is negative (distance from baseline to top)
-    int glyph_x = x + bitmap->offset_x;
+    // FreeType's offset_y is negative for glyphs above baseline (matches STB convention).
+    // y is the baseline position, so glyph top = y + offset_y
     int glyph_y = y + bitmap->offset_y;
 
     for (int gy = 0; gy < bitmap->height; ++gy) {
         for (int gx = 0; gx < bitmap->width; ++gx) {
             uint8_t alpha = bitmap->bitmap[static_cast<std::size_t>(gy * bitmap->width + gx)];
             if (alpha > 0) {
-                put_pixel(target, glyph_x + gx, glyph_y + gy, alpha);
+                put_pixel(target, x + gx, glyph_y + gy, alpha);
             }
+        }
+    }
+}
+
+void font_source::rasterize_styled_ttf_glyph(char32_t codepoint, float size,
+                                              void* target, int x, int y,
+                                              void (*put_pixel)(void*, int, int, uint8_t),
+                                              const render_style& style) const {
+    if (!m_rasterizer || !m_rasterizer->is_valid()) return;
+
+    // Convert render_style to FreeType style
+    ft_render_style ft_style;
+    ft_style.bold = style.is_bold();
+    ft_style.italic = style.is_italic();
+    ft_style.italic_skew = style.italic_shear;
+    ft_style.bold_strength = style.bold_strength;
+
+    // Use FreeType's proper bold synthesis and italic transform
+    auto bitmap = m_rasterizer->rasterize_styled(
+        static_cast<uint32_t>(codepoint), size, ft_style);
+
+    if (!bitmap) return;
+
+    int glyph_y = y + bitmap->offset_y;
+
+    for (int gy = 0; gy < bitmap->height; ++gy) {
+        for (int gx = 0; gx < bitmap->width; ++gx) {
+            uint8_t alpha = bitmap->bitmap[static_cast<std::size_t>(gy * bitmap->width + gx)];
+            if (alpha > 0) {
+                put_pixel(target, x + gx, glyph_y + gy, alpha);
+            }
+        }
+    }
+}
+
+void font_source::rasterize_styled_vector_glyph(char32_t codepoint, float size,
+                                                 void* target, int x, int y,
+                                                 void (*put_pixel)(void*, int, int, uint8_t),
+                                                 int width, int height,
+                                                 const render_style& style) const {
+    if (codepoint > 255) return;
+
+    const auto& font = *std::get<vector_ref>(m_font).font;
+    auto ch = static_cast<uint8_t>(codepoint);
+
+    const vector_glyph* glyph = font.get_glyph(ch);
+    if (!glyph) {
+        glyph = font.get_glyph(font.get_default_char());
+        if (!glyph) return;
+    }
+
+    const auto& metrics = font.get_metrics();
+    float scale = size / static_cast<float>(metrics.pixel_height);
+
+    float origin_x = static_cast<float>(x);
+    float origin_y = static_cast<float>(y);
+
+    // Calculate line thickness for bold
+    float thickness = 1.0f;
+    if (style.is_bold()) {
+        int bold_strength = style.bold_strength;
+        if (bold_strength <= 0) {
+            bold_strength = calc_bold_strength(size);
+        }
+        thickness = 1.0f + static_cast<float>(bold_strength);
+    }
+
+    // Get italic shear
+    float shear = style.is_italic() ? style.italic_shear : 0.0f;
+
+    float pen_x = origin_x;
+    float pen_y = origin_y;
+    bool pen_down = true;
+
+    for (const auto& cmd : glyph->strokes) {
+        switch (cmd.type) {
+            case stroke_type::MOVE_TO: {
+                pen_x += static_cast<float>(cmd.dx) * scale;
+                pen_y += static_cast<float>(cmd.dy) * scale;
+                pen_down = true;
+                break;
+            }
+
+            case stroke_type::LINE_TO: {
+                float new_x = pen_x + static_cast<float>(cmd.dx) * scale;
+                float new_y = pen_y + static_cast<float>(cmd.dy) * scale;
+
+                if (pen_down) {
+                    // Apply shear transformation for italic
+                    float x0 = shear != 0.0f ? apply_shear(pen_x, pen_y, origin_y, shear) : pen_x;
+                    float y0 = pen_y;
+                    float x1 = shear != 0.0f ? apply_shear(new_x, new_y, origin_y, shear) : new_x;
+                    float y1 = new_y;
+
+                    // Draw with appropriate thickness
+                    if (thickness > 1.0f) {
+                        draw_line_thick(target, x0, y0, x1, y1, thickness,
+                                       put_pixel, width, height);
+                    } else {
+                        draw_line_aa(target, x0, y0, x1, y1,
+                                    put_pixel, width, height);
+                    }
+                }
+
+                pen_x = new_x;
+                pen_y = new_y;
+                break;
+            }
+
+            case stroke_type::END:
+                pen_down = false;
+                break;
         }
     }
 }

@@ -251,6 +251,40 @@ namespace onyx_font {
             return info;
         }
 
+        // Analyze GEM font
+        container_info analyze_gem(std::span<const uint8_t> data) {
+            container_info info;
+            info.format = container_format::GEM;
+
+            // GEM files contain exactly one font
+            font_entry entry;
+            entry.type = font_type::BITMAP;
+            entry.weight = 400;
+            entry.italic = false;
+
+            // Try to extract info from GEM header
+            if (data.size() >= 84) {
+                // Point size at offset 2
+                entry.point_size = static_cast<uint16_t>(data[2] | (data[3] << 8));
+
+                // Font name at offset 4 (32 bytes)
+                entry.name = std::string(
+                    reinterpret_cast<const char*>(data.data() + 4),
+                    strnlen(reinterpret_cast<const char*>(data.data() + 4), 32)
+                );
+
+                // Form height at offset 82
+                entry.pixel_height = static_cast<uint16_t>(data[82] | (data[83] << 8));
+            }
+
+            if (entry.name.empty()) {
+                entry.name = "GEM Font";
+            }
+
+            info.fonts.push_back(entry);
+            return info;
+        }
+
         // Analyze BGI font
         container_info analyze_bgi(std::span<const uint8_t> data) {
             container_info info;
@@ -314,8 +348,7 @@ namespace onyx_font {
                 try {
                     ttf_font font(data, i);
                     if (font.is_valid()) {
-                        // stb_truetype doesn't provide a direct way to get the name
-                        // We could parse the name table, but for now use a placeholder
+                        // Name table parsing not implemented yet
                         entry.name = "Font " + std::to_string(i);
                     }
                 } catch (...) {
@@ -483,6 +516,11 @@ namespace onyx_font {
             return analyze_fnt(data);
         }
 
+        // Check for GEM font
+        if (internal::gem_font_loader::is_gem_font(data)) {
+            return analyze_gem(data);
+        }
+
         return {container_format::UNKNOWN, {}};
     }
 
@@ -497,6 +535,13 @@ namespace onyx_font {
 
     bitmap_font font_factory::load_bitmap(std::span<const uint8_t> data, size_t index) {
         THROW_IF(data.size() < 4, std::runtime_error, "Invalid font data: too small");
+
+        // Check for GEM font
+        if (internal::gem_font_loader::is_gem_font(data)) {
+            THROW_IF(index != 0, std::invalid_argument,
+                     "GEM fonts contain only one font (index must be 0)");
+            return internal::gem_font_loader::load(data);
+        }
 
         // Check for raw FNT file first
         if (is_fnt_file(data)) {
@@ -636,6 +681,12 @@ namespace onyx_font {
             return result;
         }
 
+        // Check for GEM font
+        if (internal::gem_font_loader::is_gem_font(data)) {
+            result.push_back(internal::gem_font_loader::load(data));
+            return result;
+        }
+
         // Check for raw FNT file
         if (is_fnt_file(data)) {
             auto opt_font = libexe::font_parser::parse(data);
@@ -754,6 +805,7 @@ namespace onyx_font {
             case container_format::FON_PE: return "Windows 32/64-bit Font Resource";
             case container_format::FON_LX: return "OS/2 Font Resource";
             case container_format::BGI: return "Borland Graphics Interface";
+            case container_format::GEM: return "GEM Font";
             default: return "Unknown";
         }
     }

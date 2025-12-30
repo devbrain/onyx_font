@@ -64,13 +64,13 @@ target_compile_features(text_scroller PRIVATE cxx_std_20)
 
 # Pass test data directory for fonts
 target_compile_definitions(text_scroller PRIVATE
-    TESTDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../unittest/testdata"
+    TESTDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../test/testdata"
 )
 
 # Copy fonts to build directory
 add_custom_command(TARGET text_scroller POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../unittest/testdata"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../test/testdata"
         "$<TARGET_FILE_DIR:text_scroller>/fonts"
     COMMENT "Copying test fonts to build directory"
 )

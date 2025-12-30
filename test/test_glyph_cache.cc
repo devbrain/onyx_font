@@ -71,7 +71,6 @@ TEST_SUITE("glyph_cache") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         glyph_cache_config config;
@@ -177,7 +176,6 @@ TEST_SUITE("glyph_cache") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         glyph_cache_config config;
@@ -247,7 +245,6 @@ TEST_SUITE("glyph_cache") {
 
         auto data = test_data::load_ttf_arial();
         ttf_font ttf(data);
-        stb_truetype_font stb(data);
         auto source = font_source::from_ttf(ttf);
 
         glyph_cache<memory_atlas> cache(std::move(source), 24.0f);

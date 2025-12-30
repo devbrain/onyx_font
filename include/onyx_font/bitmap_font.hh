@@ -113,6 +113,7 @@
 namespace onyx_font {
     namespace internal {
         struct win_bitmap_fon_loader;
+        struct gem_font_loader;
     }
 
     struct font_converter;
@@ -271,6 +272,7 @@ namespace onyx_font {
      */
     class ONYX_FONT_EXPORT bitmap_font {
         friend struct internal::win_bitmap_fon_loader;
+        friend struct internal::gem_font_loader;
         friend struct font_converter;
         friend struct font_factory;
 

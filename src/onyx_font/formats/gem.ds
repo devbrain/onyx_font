@@ -1,0 +1,161 @@
+/**
+ * GEM Font Format (Atari ST / Genus Microprogramming)
+ *
+ * GEM fonts are bitmap fonts from the GEM desktop environment,
+ * commonly found with .gft or .fnt extensions in DOS projects.
+ * The format was used by Genus Microprogramming's graphics library.
+ *
+ * File structure:
+ * 1. Fixed 84-byte header with font metrics and pointers
+ * 2. Horizontal Offset Table (character widths)
+ * 3. Character Offset Table (bitmap column offsets)
+ * 4. Bitmap data buffer
+ *
+ * The bitmap data is stored column-major in a single buffer,
+ * with each character occupying a horizontal slice.
+ */
+package formats.gem;
+
+// GEM fonts use little-endian byte order
+little;
+
+// =============================================================================
+// Header Structure
+// =============================================================================
+
+/**
+ * GEM Font Header (84 bytes)
+ *
+ * Contains font identification, metrics, styling hints, and pointers
+ * to the offset tables and bitmap data.
+ */
+struct gem_font_header {
+    // Font identification
+    int16 fid;              // Font identifier
+    int16 psize;            // Point size
+    uint8 fntname[32];      // Font name (null-padded string)
+
+    // Character range (0-255)
+    int16 minch;            // Minimum character code
+    int16 maxch;            // Maximum character code
+
+    // Vertical metrics (all relative to baseline)
+    int16 topline;          // Top line distance (above ascent for accents)
+    int16 ascent;           // Ascent (baseline to top of capitals)
+    int16 halfline;         // Half line distance (x-height)
+    int16 descent;          // Descent (baseline to bottom of descenders)
+    int16 botline;          // Bottom line distance
+
+    // Horizontal metrics
+    int16 maxwidth;         // Maximum character width
+    int16 cellsize;         // Maximum cell size (width including spacing)
+    int16 leftofs;          // Left offset (global left side bearing)
+    int16 rightofs;         // Right offset (global right side bearing)
+
+    // Styling hints
+    int16 thicken;          // Pixels to thicken for synthetic bold
+    int16 ulwidth;          // Underline stroke width
+    int16 lightmask;        // Lightening mask for light weight
+    int16 skewmask;         // Skew mask for synthetic italic
+
+    // Font flags
+    int16 flags;            // Font attribute flags
+
+    // Reserved/segment field (used for font chaining in some implementations)
+    int32 reserved;         // Reserved for future use or font segment pointer
+
+    // Pointers to data sections (absolute file offsets)
+    int32 hotptr;           // Horizontal Offset Table pointer
+    int32 cotptr;           // Character Offset Table pointer
+
+    // Data dimensions
+    int16 fwidth;           // Form width (total bitmap width in pixels)
+    int16 fheight;          // Form height (rows per character = line height)
+};
+
+/**
+ * Horizontal Offset Table Entry
+ *
+ * Each entry contains the width of a character.
+ * Table has (maxch - minch + 1) entries.
+ */
+struct gem_hot_entry {
+    int16 width;            // Character width in pixels
+};
+
+/**
+ * Character Offset Table Entry
+ *
+ * Each entry contains the pixel offset into the bitmap buffer
+ * where the character's bitmap column starts.
+ * Table has (maxch - minch + 2) entries (extra entry for end marker).
+ */
+struct gem_cot_entry {
+    int16 offset;           // Pixel offset in bitmap buffer
+};
+
+// =============================================================================
+// Usage Notes
+// =============================================================================
+
+/*
+ * GEM FONT PARSING WORKFLOW:
+ *
+ * 1. Read 84-byte header
+ * 2. Validate header:
+ *    - fheight > 0
+ *    - fheight >= ascent >= 0
+ *    - ascent >= descent >= 0
+ *    - ascent + descent <= fheight
+ *    - cellsize > 0
+ *    - maxch >= minch
+ *    - maxch < 256
+ *
+ * 3. Calculate number of characters: num_chars = maxch - minch + 1
+ *
+ * 4. Read Horizontal Offset Table at hotptr:
+ *    - num_chars entries of int16 (character widths)
+ *
+ * 5. Read Character Offset Table at cotptr:
+ *    - (num_chars + 1) entries of int16 (bitmap column offsets)
+ *    - Extra entry marks end of last character
+ *
+ * 6. Read bitmap data at bufptr:
+ *    - Size = fwidth * ((fheight + 7) / 8) bytes
+ *    - Data is stored row-major, packed bits
+ *    - Each row is fwidth bits wide
+ *
+ * 7. For each character i:
+ *    - Width = hot[i]
+ *    - Start column = cot[i]
+ *    - End column = cot[i+1]
+ *    - Extract bitmap columns from start to end
+ *
+ * BITMAP FORMAT:
+ *
+ * The bitmap buffer stores all characters side-by-side in a single
+ * wide bitmap. Each character occupies consecutive columns.
+ *
+ * Layout:
+ * - Total width: fwidth pixels
+ * - Total height: fheight pixels
+ * - Byte organization: row-major, MSB first within each byte
+ * - Row stride: (fwidth + 7) / 8 bytes
+ *
+ * To extract character i:
+ * - Start column: cot[i]
+ * - Width: cot[i+1] - cot[i] (or hot[i] for display width)
+ * - For each row y (0 to fheight-1):
+ *   - For each column x (0 to width-1):
+ *     - Bit position = cot[i] + x
+ *     - Byte offset = y * row_stride + bit_position / 8
+ *     - Bit within byte = 7 - (bit_position % 8) [MSB first]
+ *
+ * FONT FLAGS:
+ *
+ * The flags field contains attribute bits:
+ * - Bit 0: System font flag
+ * - Bit 1: Horizontal offset table present
+ * - Bit 2: Byte swap needed (big-endian source)
+ * - Bit 3: Monospace font
+ */
