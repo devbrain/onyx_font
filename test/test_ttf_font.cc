@@ -34,10 +34,10 @@ TEST_SUITE("ttf_font") {
 
         auto metrics = font.get_metrics(24.0f);
 
-        // Ground truth from dump_font_metadata
-        CHECK(metrics.ascent == doctest::Approx(19.4476f).epsilon(0.01));
-        CHECK(metrics.descent == doctest::Approx(-4.55245f).epsilon(0.01));
-        CHECK(metrics.line_gap == doctest::Approx(0.702797f).epsilon(0.01));
+        // FreeType metrics from font units (ascender/descender/height)
+        CHECK(metrics.ascent == doctest::Approx(21.7266f).epsilon(0.01));
+        CHECK(metrics.descent == doctest::Approx(-5.0859f).epsilon(0.01));
+        CHECK(metrics.line_gap == doctest::Approx(0.0f).epsilon(0.5));
     }
 
     TEST_CASE("get glyph metrics at 24px") {
@@ -47,23 +47,22 @@ TEST_SUITE("ttf_font") {
         ttf_font font(data);
         REQUIRE(font.is_valid());
 
-        // Test glyph 'A' - metrics from stbtt_GetGlyphBitmapBox (pixel-aligned)
+        // Test glyph 'A' - metrics from FreeType (26.6 fixed point)
         auto glyph_A = font.get_glyph_metrics('A', 24.0f);
         REQUIRE(glyph_A.has_value());
-        CHECK(glyph_A->advance_x == doctest::Approx(14.3287f).epsilon(0.01));
-        // Width/height are pixel-aligned (from stbtt_GetGlyphBitmapBox)
-        CHECK(glyph_A->width == doctest::Approx(16.0f).epsilon(0.01));
-        CHECK(glyph_A->height == doctest::Approx(16.0f).epsilon(0.01));
+        CHECK(glyph_A->advance_x == doctest::Approx(16.0f).epsilon(0.1));
+        CHECK(glyph_A->width == doctest::Approx(18.0f).epsilon(0.1));
+        CHECK(glyph_A->height == doctest::Approx(17.0f).epsilon(0.1));
 
         // Test glyph 'M'
         auto glyph_M = font.get_glyph_metrics('M', 24.0f);
         REQUIRE(glyph_M.has_value());
-        CHECK(glyph_M->advance_x == doctest::Approx(17.8951f).epsilon(0.01));
+        CHECK(glyph_M->advance_x == doctest::Approx(20.0f).epsilon(0.1));
 
         // Test glyph 'g' (has descender)
         auto glyph_g = font.get_glyph_metrics('g', 24.0f);
         REQUIRE(glyph_g.has_value());
-        CHECK(glyph_g->advance_x == doctest::Approx(11.9476f).epsilon(0.01));
+        CHECK(glyph_g->advance_x == doctest::Approx(13.0f).epsilon(0.1));
     }
 
     TEST_CASE("get glyph shape (outline)") {

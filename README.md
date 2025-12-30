@@ -220,8 +220,7 @@ Contributions are welcome. Please ensure that:
 
 This library uses the following open-source components:
 
-- [stb_truetype](https://github.com/nothings/stb) - TrueType font parsing (metrics and outline extraction)
-- [FreeType](https://freetype.org/) - High-quality TrueType font rasterization with hinting
+- [FreeType](https://freetype.org/) - TrueType/OpenType font parsing and rasterization
 - [mzexplode](https://github.com/devbrain/mz-explode) - NE/PE/LX executable parsing
 - [datascript](https://github.com/devbrain/datascript) - Binary data structure parsing
 - [euler](https://github.com/devbrain/euler) - Line rasterization algorithms
