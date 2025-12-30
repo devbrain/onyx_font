@@ -3,6 +3,7 @@
 //
 
 #include <onyx_font/ttf_font.hh>
+#include "utils/freetype_library.hh"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -10,17 +11,6 @@
 #include FT_BBOX_H
 
 namespace onyx_font {
-
-    namespace {
-        // Global FreeType library instance (initialized lazily)
-        FT_Library get_ft_library() {
-            static FT_Library library = nullptr;
-            if (!library) {
-                FT_Init_FreeType(&library);
-            }
-            return library;
-        }
-    }
 
     struct ttf_font::impl {
         FT_Face face = nullptr;
@@ -34,7 +24,7 @@ namespace onyx_font {
                 return;
             }
 
-            FT_Library lib = get_ft_library();
+            FT_Library lib = detail::freetype_library::get();
             if (!lib) {
                 return;
             }
@@ -330,7 +320,7 @@ namespace onyx_font {
             return 0;
         }
 
-        FT_Library lib = get_ft_library();
+        FT_Library lib = detail::freetype_library::get();
         if (!lib) {
             return 0;
         }

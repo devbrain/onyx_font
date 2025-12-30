@@ -3,6 +3,7 @@
 //
 
 #include <onyx_font/utils/freetype_font.hh>
+#include "freetype_library.hh"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -13,30 +14,6 @@
 #include <algorithm>
 
 namespace onyx_font {
-
-    // FreeType library singleton
-    namespace {
-        class ft_library_holder {
-        public:
-            static FT_Library get() {
-                static ft_library_holder instance;
-                return instance.m_library;
-            }
-
-        private:
-            ft_library_holder() {
-                FT_Init_FreeType(&m_library);
-            }
-
-            ~ft_library_holder() {
-                if (m_library) {
-                    FT_Done_FreeType(m_library);
-                }
-            }
-
-            FT_Library m_library = nullptr;
-        };
-    }
 
     struct freetype_font::impl {
         FT_Face face = nullptr;
@@ -51,7 +28,7 @@ namespace onyx_font {
             // FreeType requires data to persist, so make a copy
             data_copy.assign(data.begin(), data.end());
 
-            FT_Library lib = ft_library_holder::get();
+            FT_Library lib = detail::freetype_library::get();
             if (!lib) {
                 return;
             }
@@ -244,7 +221,7 @@ namespace onyx_font {
             return 0;
         }
 
-        FT_Library lib = ft_library_holder::get();
+        FT_Library lib = detail::freetype_library::get();
         if (!lib) {
             return 0;
         }
