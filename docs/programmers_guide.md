@@ -18,10 +18,11 @@ A comprehensive guide to using the onyx_font library for loading fonts and rende
 8. [Advanced Text Rendering](#advanced-text-rendering)
 9. [Gradient Text Rendering](#gradient-text-rendering)
 10. [SDL2 Integration](#sdl2-integration)
-11. [Font Conversion](#font-conversion)
-12. [UTF-8 Support](#utf-8-support)
-13. [Performance Considerations](#performance-considerations)
-14. [API Reference Summary](#api-reference-summary)
+11. [Extending with Custom Decoders](#extending-with-custom-decoders)
+12. [Font Conversion](#font-conversion)
+13. [UTF-8 Support](#utf-8-support)
+14. [Performance Considerations](#performance-considerations)
+15. [API Reference Summary](#api-reference-summary)
 
 ---
 
@@ -1358,6 +1359,366 @@ cache.precache_range(U'А', U'я');   // Cyrillic (if needed)
 
 ---
 
+## Extending with Custom Decoders
+
+onyx_font provides an extension API that allows you to add support for new font formats without modifying the library source. This is done through the `font_registry` and decoder base classes.
+
+### Architecture Overview
+
+The extension system consists of:
+
+1. **Decoder Base Classes** - Abstract interfaces for each font type
+2. **Font Registry** - Singleton that manages all registered decoders
+3. **Built-in Decoders** - Pre-registered decoders for standard formats
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    font_registry                         │
+│              (singleton, manages decoders)               │
+├─────────────────────────────────────────────────────────┤
+│  bitmap_decoders[]     vector_decoders[]    outline_decoders[]
+│  ├─ gem_decoder        ├─ bgi_decoder       └─ ttf_decoder
+│  ├─ win_bitmap_decoder └─ win_vector_decoder
+│  └─ your_decoder (custom)
+└─────────────────────────────────────────────────────────┘
+```
+
+### Using the Font Registry
+
+The `font_registry` provides direct access to format decoders:
+
+```cpp
+#include <onyx_font/font_registry.hh>
+
+using namespace onyx_font;
+
+auto& registry = font_registry::instance();
+
+// Find decoder by sniffing file data
+if (auto* decoder = registry.find_bitmap_decoder(file_data)) {
+    // Enumerate fonts in the file
+    auto entries = decoder->enumerate(file_data);
+    for (const auto& entry : entries) {
+        std::cout << entry.name << " - " << entry.pixel_height << "px\n";
+    }
+
+    // Load a specific font
+    bitmap_font font = decoder->load(file_data, 0);
+}
+
+// Find decoder by name
+if (auto* decoder = registry.find_vector_decoder("bgi")) {
+    vector_font font = decoder->load(bgi_file_data);
+}
+
+// List all registered bitmap decoders
+for (std::size_t i = 0; i < registry.bitmap_decoder_count(); ++i) {
+    auto* dec = registry.bitmap_decoder_at(i);
+    std::cout << dec->name() << "\n";
+}
+```
+
+### Decoder Base Classes
+
+Three abstract base classes are provided, one for each font type:
+
+| Class | Output Type | Use For |
+|-------|-------------|---------|
+| `bitmap_font_decoder` | `bitmap_font` | Raster formats (PSF, BDF, PCF, FNT) |
+| `vector_font_decoder` | `vector_font` | Stroke formats (Hershey, custom) |
+| `outline_font_decoder` | `ttf_font` | Outline formats (WOFF, Type1) |
+
+Each decoder must implement these methods:
+
+```cpp
+class my_decoder : public bitmap_font_decoder {
+public:
+    // Identifier for this format (used for lookup by name)
+    std::string_view name() const noexcept override;
+
+    // File extensions (e.g., {".psf", ".psfu"})
+    std::span<const std::string_view> extensions() const noexcept override;
+
+    // Quick format detection (check magic bytes)
+    bool sniff(std::span<const std::uint8_t> data) const noexcept override;
+
+    // Enumerate fonts without full parsing
+    std::vector<font_entry> enumerate(std::span<const std::uint8_t> data) const override;
+
+    // Load a specific font by index
+    bitmap_font load(std::span<const std::uint8_t> data, std::size_t index) const override;
+};
+```
+
+### Example: Linux PSF Font Decoder
+
+Here's a complete example implementing support for Linux PSF (PC Screen Font) format:
+
+```cpp
+#include <onyx_font/decoder.hh>
+#include <onyx_font/font_registry.hh>
+#include <onyx_font/bitmap_font.hh>
+#include <stdexcept>
+
+namespace my_fonts {
+
+// PSF2 header structure
+struct psf2_header {
+    uint32_t magic;         // 0x864ab572
+    uint32_t version;       // Usually 0
+    uint32_t header_size;   // Size of this header
+    uint32_t flags;         // 0 = no unicode table
+    uint32_t num_glyphs;    // Number of glyphs
+    uint32_t bytes_per_glyph;
+    uint32_t height;        // Glyph height in pixels
+    uint32_t width;         // Glyph width in pixels
+};
+
+class psf_decoder : public onyx_font::bitmap_font_decoder {
+public:
+    static constexpr uint32_t PSF2_MAGIC = 0x864ab572;
+
+    std::string_view name() const noexcept override {
+        return "psf";
+    }
+
+    std::span<const std::string_view> extensions() const noexcept override {
+        static constexpr std::string_view ext[] = {".psf", ".psfu"};
+        return ext;
+    }
+
+    bool sniff(std::span<const std::uint8_t> data) const noexcept override {
+        if (data.size() < sizeof(psf2_header)) return false;
+
+        // Check PSF2 magic (little-endian)
+        uint32_t magic = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+        return magic == PSF2_MAGIC;
+    }
+
+    std::vector<onyx_font::font_entry> enumerate(
+        std::span<const std::uint8_t> data) const override {
+
+        auto header = parse_header(data);
+
+        onyx_font::font_entry entry;
+        entry.name = "PSF Console Font";
+        entry.type = onyx_font::font_type::BITMAP;
+        entry.pixel_height = static_cast<uint16_t>(header.height);
+        entry.point_size = 0;
+        entry.weight = 400;
+        entry.italic = false;
+
+        return {entry};
+    }
+
+    onyx_font::bitmap_font load(
+        std::span<const std::uint8_t> data,
+        std::size_t index) const override {
+
+        if (index != 0) {
+            throw std::out_of_range("PSF files contain only one font");
+        }
+
+        auto header = parse_header(data);
+
+        // Validate data size
+        size_t expected_size = header.header_size +
+                              header.num_glyphs * header.bytes_per_glyph;
+        if (data.size() < expected_size) {
+            throw std::runtime_error("PSF file truncated");
+        }
+
+        // Build bitmap font
+        onyx_font::bitmap_font font;
+        font.m_name = "PSF Console Font";
+        font.m_first_char = 0;
+        font.m_last_char = static_cast<uint8_t>(
+            std::min(header.num_glyphs, uint32_t{256}) - 1);
+        font.m_default_char = '?';
+        font.m_break_char = ' ';
+
+        // Set metrics
+        font.m_metrics.pixel_height = static_cast<uint16_t>(header.height);
+        font.m_metrics.ascent = static_cast<uint16_t>(header.height);
+        font.m_metrics.internal_leading = 0;
+        font.m_metrics.external_leading = 0;
+        font.m_metrics.avg_width = static_cast<uint16_t>(header.width);
+        font.m_metrics.max_width = static_cast<uint16_t>(header.width);
+
+        // Set spacing (all characters same width)
+        size_t char_count = font.m_last_char - font.m_first_char + 1;
+        font.m_spacing.resize(char_count);
+        for (auto& sp : font.m_spacing) {
+            sp.b_space = static_cast<int16_t>(header.width);
+        }
+
+        // Build glyph storage
+        onyx_font::bitmap_builder builder(onyx_font::bit_order::msb_first);
+        builder.reserve_glyphs(char_count);
+
+        const uint8_t* glyph_data = data.data() + header.header_size;
+        size_t bytes_per_row = (header.width + 7) / 8;
+
+        for (size_t i = 0; i < char_count; ++i) {
+            const uint8_t* glyph_start = glyph_data + i * header.bytes_per_glyph;
+
+            std::span<const std::byte> rows(
+                reinterpret_cast<const std::byte*>(glyph_start),
+                bytes_per_row * header.height
+            );
+
+            builder.add_glyph_packed(
+                static_cast<uint16_t>(header.width),
+                static_cast<uint16_t>(header.height),
+                rows
+            );
+        }
+
+        font.m_storage = std::move(builder).build();
+        return font;
+    }
+
+private:
+    psf2_header parse_header(std::span<const std::uint8_t> data) const {
+        if (data.size() < sizeof(psf2_header)) {
+            throw std::runtime_error("PSF file too small");
+        }
+
+        psf2_header h;
+        const uint8_t* p = data.data();
+
+        h.magic = p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+        h.version = p[4] | (p[5] << 8) | (p[6] << 16) | (p[7] << 24);
+        h.header_size = p[8] | (p[9] << 8) | (p[10] << 16) | (p[11] << 24);
+        h.flags = p[12] | (p[13] << 8) | (p[14] << 16) | (p[15] << 24);
+        h.num_glyphs = p[16] | (p[17] << 8) | (p[18] << 16) | (p[19] << 24);
+        h.bytes_per_glyph = p[20] | (p[21] << 8) | (p[22] << 16) | (p[23] << 24);
+        h.height = p[24] | (p[25] << 8) | (p[26] << 16) | (p[27] << 24);
+        h.width = p[28] | (p[29] << 8) | (p[30] << 16) | (p[31] << 24);
+
+        if (h.magic != PSF2_MAGIC) {
+            throw std::runtime_error("Invalid PSF magic");
+        }
+
+        return h;
+    }
+};
+
+} // namespace my_fonts
+```
+
+### Registering Custom Decoders
+
+Register your decoder at program startup:
+
+```cpp
+#include <onyx_font/font_registry.hh>
+
+void init_custom_fonts() {
+    auto& registry = onyx_font::font_registry::instance();
+
+    // Register at end (fallback, tried after built-ins)
+    registry.register_decoder(std::make_unique<my_fonts::psf_decoder>());
+}
+
+int main() {
+    init_custom_fonts();
+
+    // Now PSF files will be recognized automatically
+    auto data = read_file("console.psf");
+
+    if (auto* decoder = onyx_font::font_registry::instance()
+            .find_bitmap_decoder(data)) {
+        auto font = decoder->load(data);
+        // Use font...
+    }
+
+    return 0;
+}
+```
+
+### Priority: Overriding Built-in Decoders
+
+To override a built-in decoder, register your decoder at the front:
+
+```cpp
+// This decoder will be tried BEFORE built-in decoders
+registry.register_decoder_first(std::make_unique<my_better_ttf_decoder>());
+```
+
+### Implementing Vector Font Decoders
+
+For stroke-based fonts, implement `vector_font_decoder`:
+
+```cpp
+class hershey_decoder : public onyx_font::vector_font_decoder {
+public:
+    std::string_view name() const noexcept override { return "hershey"; }
+
+    std::span<const std::string_view> extensions() const noexcept override {
+        static constexpr std::string_view ext[] = {".jhf", ".hf"};
+        return ext;
+    }
+
+    bool sniff(std::span<const std::uint8_t> data) const noexcept override {
+        // Check for Hershey font signature
+        return data.size() > 10 && /* check magic */;
+    }
+
+    std::vector<onyx_font::font_entry> enumerate(
+        std::span<const std::uint8_t> data) const override {
+        // Parse and return font entries
+    }
+
+    onyx_font::vector_font load(
+        std::span<const std::uint8_t> data,
+        std::size_t index) const override {
+
+        onyx_font::vector_font font;
+
+        // Parse Hershey data and populate font
+        // For each glyph:
+        //   - Create vector_glyph with stroke commands
+        //   - stroke_type::MOVE_TO, LINE_TO, END
+
+        return font;
+    }
+};
+```
+
+### Best Practices
+
+1. **Make sniff() fast** - Only check magic bytes, don't parse the whole file
+
+2. **Validate input** - Check data size before accessing bytes
+
+3. **Use enumerate() for preview** - Don't decode glyph data until load() is called
+
+4. **Handle errors gracefully** - Throw descriptive exceptions
+
+5. **Support index parameter** - Some formats have multiple fonts per file
+
+6. **Test with malformed files** - Ensure decoder doesn't crash on bad input
+
+### Thread Safety
+
+- `font_registry::instance()` is thread-safe (returns singleton)
+- Registration methods are protected by mutex
+- Decoders themselves should be stateless (const methods)
+- Multiple threads can call `find_*_decoder()` and `load()` concurrently
+
+### Built-in Decoders Reference
+
+| Name | Type | Formats |
+|------|------|---------|
+| `gem` | bitmap | GEM/Atari ST fonts (.gft, .fnt) |
+| `win_bitmap` | bitmap | Windows FON/FNT bitmap fonts |
+| `bgi` | vector | Borland BGI fonts (.chr) |
+| `win_vector` | vector | Windows FON/FNT vector fonts |
+| `ttf` | outline | TrueType/OpenType (.ttf, .otf, .ttc) |
+
+---
+
 ## Font Conversion
 
 ### Converting to Bitmap
@@ -1511,6 +1872,13 @@ if (ch >= font.get_first_char() && ch <= font.get_last_char()) {
 | `ttf_font.hh` | `ttf_font`, `ttf_glyph_shape`, `ttf_vertex` | TrueType/OpenType fonts |
 | `font_factory.hh` | `font_factory`, `container_info`, `font_entry` | Font loading |
 | `font_converter.hh` | `font_converter`, `conversion_options` | Font conversion |
+
+### Extension API
+
+| Header | Classes | Purpose |
+|--------|---------|---------|
+| `decoder.hh` | `bitmap_font_decoder`, `vector_font_decoder`, `outline_font_decoder` | Decoder base classes |
+| `font_registry.hh` | `font_registry` | Decoder registration and lookup |
 
 ### Text Rendering
 

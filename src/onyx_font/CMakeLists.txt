@@ -91,6 +91,10 @@ target_sources(onyx_font PRIVATE
     font_factory.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/font_factory.hh
 
+    font_registry.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/font_registry.hh
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/decoder.hh
+
     loader/win_fon.cc
     loader/loaders.hh
 

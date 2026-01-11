@@ -9,6 +9,7 @@ A modern C++20 library for loading, manipulating, and rendering fonts from multi
 ## Features
 
 - **Multi-format support** - Load fonts from TTF, OTF, TTC, Windows FON/FNT, GEM, and Borland BGI files
+- **Extensible architecture** - Add custom format decoders without modifying library source
 - **Automatic format detection** - Analyze font containers and enumerate embedded fonts
 - **High-quality rendering** - Antialiased text rasterization with subpixel positioning
 - **GPU-friendly architecture** - Texture atlas with glyph caching for hardware-accelerated rendering
@@ -110,6 +111,85 @@ for (const auto& entry : info.fonts) {
 }
 ```
 
+### Using the Font Registry
+
+The `font_registry` provides direct access to format decoders:
+
+```cpp
+#include <onyx_font/font_registry.hh>
+
+auto& registry = onyx_font::font_registry::instance();
+
+// Find decoder by sniffing file data
+if (auto* decoder = registry.find_bitmap_decoder(file_data)) {
+    auto entries = decoder->enumerate(file_data);
+    auto font = decoder->load(file_data, 0);
+}
+
+// Find decoder by name
+if (auto* decoder = registry.find_vector_decoder("bgi")) {
+    auto font = decoder->load(bgi_data);
+}
+
+// List all registered decoders
+for (std::size_t i = 0; i < registry.bitmap_decoder_count(); ++i) {
+    std::cout << registry.bitmap_decoder_at(i)->name() << "\n";
+}
+```
+
+### Adding Custom Format Support
+
+Extend the library with custom font format decoders without modifying library source:
+
+```cpp
+#include <onyx_font/decoder.hh>
+#include <onyx_font/font_registry.hh>
+
+// Implement a custom bitmap font decoder (e.g., Linux PSF format)
+class psf_decoder : public onyx_font::bitmap_font_decoder {
+public:
+    std::string_view name() const noexcept override {
+        return "psf";
+    }
+
+    std::span<const std::string_view> extensions() const noexcept override {
+        static constexpr std::string_view ext[] = {".psf", ".psfu"};
+        return ext;
+    }
+
+    bool sniff(std::span<const std::uint8_t> data) const noexcept override {
+        if (data.size() < 4) return false;
+        // PSF2 magic: 0x72 0xb5 0x4a 0x86
+        return data[0] == 0x72 && data[1] == 0xb5 &&
+               data[2] == 0x4a && data[3] == 0x86;
+    }
+
+    std::vector<onyx_font::font_entry> enumerate(
+        std::span<const std::uint8_t> data) const override {
+        // Parse PSF header and return font metadata
+        // ...
+    }
+
+    onyx_font::bitmap_font load(
+        std::span<const std::uint8_t> data,
+        std::size_t index) const override {
+        // Parse and return the bitmap font
+        // ...
+    }
+};
+
+// Register at program startup
+void init_custom_fonts() {
+    onyx_font::font_registry::instance()
+        .register_decoder(std::make_unique<psf_decoder>());
+}
+```
+
+Three decoder base classes are available:
+- `bitmap_font_decoder` - For raster formats (PSF, BDF, PCF, etc.)
+- `vector_font_decoder` - For stroke-based formats (Hershey, etc.)
+- `outline_font_decoder` - For outline formats (WOFF, Type1, etc.)
+
 ### GPU Text Rendering with Glyph Cache
 
 ```cpp
@@ -166,6 +246,8 @@ onyx_font/
 │   ├── vector_font.hh       # Stroke-based font class
 │   ├── ttf_font.hh          # TrueType/OpenType font class
 │   ├── font_factory.hh      # Font loading and format detection
+│   ├── font_registry.hh     # Decoder registry (extension API)
+│   ├── decoder.hh           # Decoder base classes
 │   ├── font_converter.hh    # Font conversion utilities
 │   ├── text/                # Text rendering subsystem
 │   │   ├── font_source.hh   # Unified font abstraction

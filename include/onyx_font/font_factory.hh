@@ -79,6 +79,8 @@
 #include <onyx_font/bitmap_font.hh>
 #include <onyx_font/vector_font.hh>
 #include <onyx_font/ttf_font.hh>
+#include <onyx_font/decoder.hh>
+#include <onyx_font/font_registry.hh>
 
 namespace onyx_font {
     /**
