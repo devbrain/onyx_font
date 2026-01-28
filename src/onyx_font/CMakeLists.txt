@@ -40,6 +40,7 @@ if(NOT TARGET freetype)
         GIT_REPOSITORY https://github.com/freetype/freetype.git
         GIT_TAG VER-2-13-3
         GIT_SHALLOW TRUE
+        PATCH_COMMAND ${CMAKE_COMMAND} -P ${NEUTRINO_CMAKE_DIR}/patches/patch_cmake_minimum.cmake
     )
     FetchContent_MakeAvailable(freetype)
 endif()
