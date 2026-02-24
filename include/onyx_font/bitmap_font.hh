@@ -286,6 +286,30 @@ namespace onyx_font {
         bitmap_font();
 
         /**
+         * @brief Construct a bitmap font from components.
+         *
+         * Public constructor for use by custom font decoders and loaders
+         * that need to build bitmap_font objects from parsed data.
+         *
+         * @param name Font display name
+         * @param first_char First character code in the font
+         * @param last_char Last character code in the font
+         * @param default_char Fallback character for missing glyphs
+         * @param break_char Word break character (typically space)
+         * @param metrics Font-level metrics (height, ascent, etc.)
+         * @param spacing Per-glyph ABC spacing (size must be last_char - first_char + 1)
+         * @param storage Glyph bitmap storage (must contain same number of glyphs as spacing)
+         */
+        bitmap_font(std::string name,
+                    uint8_t first_char,
+                    uint8_t last_char,
+                    uint8_t default_char,
+                    uint8_t break_char,
+                    font_metrics metrics,
+                    std::vector<glyph_spacing> spacing,
+                    bitmap_storage storage);
+
+        /**
          * @brief Get the font's display name.
          * @return Font name (e.g., "System", "Courier", "Terminal")
          */

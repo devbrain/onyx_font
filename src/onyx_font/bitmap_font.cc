@@ -8,6 +8,24 @@
 namespace onyx_font {
     bitmap_font::bitmap_font() = default;
 
+    bitmap_font::bitmap_font(std::string name,
+                             uint8_t first_char,
+                             uint8_t last_char,
+                             uint8_t default_char,
+                             uint8_t break_char,
+                             font_metrics metrics,
+                             std::vector<glyph_spacing> spacing,
+                             bitmap_storage storage)
+        : m_name(std::move(name)),
+          m_first_char(first_char),
+          m_last_char(last_char),
+          m_default_char(default_char),
+          m_break_char(break_char),
+          m_metrics(metrics),
+          m_spacing(std::move(spacing)),
+          m_storage(std::move(storage)) {
+    }
+
     std::string bitmap_font::get_name() const {
         return m_name;
     }
