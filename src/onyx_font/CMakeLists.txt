@@ -92,6 +92,11 @@ target_sources(onyx_font PRIVATE
     font_factory.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/font_factory.hh
 
+    bios_font_8x8.cc
+    bios_font_8x14.cc
+    bios_font_8x16.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/bios_font.hh
+
     font_registry.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/font_registry.hh
     ${PROJECT_SOURCE_DIR}/include/onyx_font/decoder.hh
