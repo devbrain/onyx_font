@@ -169,7 +169,7 @@ namespace onyx_font::internal {
 
             // Set spacing (B-space is the character width)
             glyph_spacing spacing;
-            spacing.b_space = glyph_width;
+            spacing.b_space = static_cast<uint16_t>(glyph_width);
             result.m_spacing.push_back(spacing);
 
             if (char_width > 0) {
