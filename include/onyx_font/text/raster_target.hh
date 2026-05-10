@@ -63,6 +63,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <onyx_font/export.h>
 #include <concepts>
 #include <cstdint>

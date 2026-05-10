@@ -74,6 +74,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <onyx_font/export.h>
 #include <onyx_font/text/types.hh>
 #include <onyx_font/text/text_rasterizer.hh>
