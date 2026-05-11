@@ -124,16 +124,22 @@ target_sources(onyx_font PRIVATE
     ${PROJECT_SOURCE_DIR}/include/onyx_font/text/text_renderer.hh
 )
 
-# FON (Windows .FON / .FNT, OS/2 LX font resources) loader — pulls libexe
+# FON (Windows .FON / .FNT, OS/2 LX font resources) loader — pulls libexe.
+# Compile def is PUBLIC because loaders.hh (gated by ONYX_FONT_HAS_LOADER_FON)
+# is included by the library's internal .cc files only, but consumers may
+# want to #if on the same macro to know whether the loader code is present.
 if(NEUTRINO_ONYX_FONT_LOADER_FON)
     target_sources(onyx_font PRIVATE
         loader/win_fon.cc
         loader/win_vector_fon.cc
     )
-    target_compile_definitions(onyx_font PRIVATE ONYX_FONT_HAS_LOADER_FON=1)
+    target_compile_definitions(onyx_font PUBLIC ONYX_FONT_HAS_LOADER_FON=1)
 endif()
 
-# TTF / OTF / TTC loader and FreeType-backed converter — pulls FreeType
+# TTF / OTF / TTC loader and FreeType-backed converter — pulls FreeType.
+# Compile def is PUBLIC because font_source.hh's `from_ttf` / `from_ttf_bytes`
+# declarations are gated by ONYX_FONT_HAS_LOADER_TTF; consumers including
+# the header must see the same macro to compile against those overloads.
 if(NEUTRINO_ONYX_FONT_LOADER_TTF)
     target_sources(onyx_font PRIVATE
         ttf_font.cc
@@ -145,7 +151,7 @@ if(NEUTRINO_ONYX_FONT_LOADER_TTF)
         font_converter.cc
         ${PROJECT_SOURCE_DIR}/include/onyx_font/font_converter.hh
     )
-    target_compile_definitions(onyx_font PRIVATE ONYX_FONT_HAS_LOADER_TTF=1)
+    target_compile_definitions(onyx_font PUBLIC ONYX_FONT_HAS_LOADER_TTF=1)
 endif()
 
 # =============================================================================
