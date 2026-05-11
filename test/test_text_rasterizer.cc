@@ -33,6 +33,12 @@ TEST_SUITE("text_rasterizer") {
         auto font = font_factory::load_bitmap(data, 0);
         auto source = font_source::from_bitmap(font);
 
+        // Capture the native size BEFORE moving the source into the
+        // rasterizer — reading from a moved-from object is UB. The old
+        // variant-based font_source happened to leave the moved-from
+        // pointer intact; the PIMPL'd version doesn't.
+        float const expected_native = source.native_size();
+
         text_rasterizer raster(std::move(source));
 
         // Setting different size shouldn't affect bitmap font metrics
@@ -42,7 +48,7 @@ TEST_SUITE("text_rasterizer") {
         CHECK(metrics.line_height > 0);
         CHECK(metrics.ascent > 0);
         // Bitmap fonts return native metrics
-        CHECK(metrics.line_height == source.native_size());
+        CHECK(metrics.line_height == expected_native);
     }
 
     TEST_CASE("get_metrics ttf") {
