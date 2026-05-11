@@ -3,13 +3,15 @@
 //
 
 #include <onyx_font/font_factory.hh>
-#include <libexe/libexe.hpp>
-#include <libexe/resources/parsers/os2_resource_parser.hpp>
 #include <failsafe/failsafe.hh>
 #include <fstream>
 #include <cstring>
 
 #include "loader/loaders.hh"
+
+#if defined(ONYX_FONT_HAS_LOADER_FON)
+#include <libexe/libexe.hpp>
+#include <libexe/resources/parsers/os2_resource_parser.hpp>
 
 // Windows headers define RT_FONT and RT_FD as macros that conflict with libexe enums
 #ifdef RT_FONT
@@ -18,6 +20,7 @@
 #ifdef RT_FD
 #undef RT_FD
 #endif
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
 namespace onyx_font {
 
@@ -38,6 +41,7 @@ namespace onyx_font {
             return std::equal(prefix.begin(), prefix.end(), data.begin());
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Check if data looks like a raw FNT file
         bool is_fnt_file(std::span<const uint8_t> data) {
             if (data.size() < 6) return false;
@@ -59,6 +63,7 @@ namespace onyx_font {
             // File size should be reasonable and match actual data size
             return file_size > 0 && file_size <= data.size() + 16;  // Allow some slack
         }
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
         // Helper to read file into vector
         std::vector<uint8_t> read_file(const std::filesystem::path& path) {
@@ -75,6 +80,7 @@ namespace onyx_font {
             return data;
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Create font_entry from libexe::font_data
         font_entry make_entry_from_font_data(const libexe::font_data& fd) {
             font_entry entry;
@@ -250,6 +256,7 @@ namespace onyx_font {
 
             return info;
         }
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
         // Analyze GEM font
         container_info analyze_gem(std::span<const uint8_t> data) {
@@ -323,6 +330,7 @@ namespace onyx_font {
             return info;
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
         // Analyze TTF/OTF/TTC
         container_info analyze_ttf(std::span<const uint8_t> data) {
             container_info info;
@@ -360,7 +368,9 @@ namespace onyx_font {
 
             return info;
         }
+#endif  // ONYX_FONT_HAS_LOADER_TTF
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Analyze raw FNT file
         container_info analyze_fnt(std::span<const uint8_t> data) {
             container_info info;
@@ -463,6 +473,7 @@ namespace onyx_font {
 
             return result;
         }
+#endif  // ONYX_FONT_HAS_LOADER_FON
     }
 
     // =========================================================================
@@ -474,18 +485,21 @@ namespace onyx_font {
             return {container_format::UNKNOWN, {}};
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
         // Check for TTF/OTF/TTC
         if (starts_with(data, TTF_MAGIC) ||
             starts_with(data, OTF_MAGIC) ||
             starts_with(data, TTC_MAGIC)) {
             return analyze_ttf(data);
         }
+#endif
 
         // Check for BGI
         if (starts_with(data, BGI_MAGIC)) {
             return analyze_bgi(data);
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Check for Windows/OS2 executable (MZ header)
         if (data[0] == 'M' && data[1] == 'Z') {
             try {
@@ -515,6 +529,7 @@ namespace onyx_font {
         if (is_fnt_file(data)) {
             return analyze_fnt(data);
         }
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
         // Check for GEM font
         if (internal::gem_font_loader::is_gem_font(data)) {
@@ -543,6 +558,7 @@ namespace onyx_font {
             return internal::gem_font_loader::load(data);
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Check for raw FNT file first
         if (is_fnt_file(data)) {
             THROW_IF(index != 0, std::invalid_argument,
@@ -592,6 +608,11 @@ namespace onyx_font {
                  "Font index", index, "out of range (have", bitmap_fonts.size(), "bitmap fonts)");
 
         return internal::win_bitmap_fon_loader::load(bitmap_fonts[index]);
+#else
+        (void)index;
+        THROW_RUNTIME("Windows .FON / .FNT loader disabled at build time "
+                      "(NEUTRINO_ONYX_FONT_LOADER_FON=OFF)");
+#endif
     }
 
     vector_font font_factory::load_vector(std::span<const uint8_t> data, size_t index) {
@@ -604,6 +625,7 @@ namespace onyx_font {
             return internal::bgi_font_loader::load(data);
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Check for raw FNT file
         if (is_fnt_file(data)) {
             THROW_IF(index != 0, std::invalid_argument,
@@ -653,8 +675,14 @@ namespace onyx_font {
                  "Font index", index, "out of range (have", vector_fonts.size(), "vector fonts)");
 
         return internal::win_vector_fon_loader::load(vector_fonts[index]);
+#else
+        (void)index;
+        THROW_RUNTIME("Windows .FON / .FNT vector loader disabled at build time "
+                      "(NEUTRINO_ONYX_FONT_LOADER_FON=OFF)");
+#endif
     }
 
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
     ttf_font font_factory::load_ttf(std::span<const uint8_t> data, size_t index) {
         THROW_IF(data.size() < 4, std::runtime_error, "Invalid font data: too small");
 
@@ -669,6 +697,7 @@ namespace onyx_font {
 
         return ttf_font(data, static_cast<int>(index));
     }
+#endif  // ONYX_FONT_HAS_LOADER_TTF
 
     // =========================================================================
     // Bulk Loading
@@ -687,6 +716,7 @@ namespace onyx_font {
             return result;
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Check for raw FNT file
         if (is_fnt_file(data)) {
             auto opt_font = libexe::font_parser::parse(data);
@@ -728,6 +758,7 @@ namespace onyx_font {
                 result.push_back(internal::win_bitmap_fon_loader::load(f));
             }
         }
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
         return result;
     }
@@ -745,6 +776,7 @@ namespace onyx_font {
             return result;
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Check for raw FNT file
         if (is_fnt_file(data)) {
             auto opt_font = libexe::font_parser::parse(data);
@@ -786,6 +818,7 @@ namespace onyx_font {
                 result.push_back(internal::win_vector_fon_loader::load(f));
             }
         }
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
         return result;
     }

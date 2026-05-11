@@ -8,11 +8,15 @@
 
 #include <onyx_font/bitmap_font.hh>
 #include <onyx_font/vector_font.hh>
-#include <libexe/resources/parsers/font_parser.hpp>
 #include <span>
+
+#if defined(ONYX_FONT_HAS_LOADER_FON)
+#include <libexe/resources/parsers/font_parser.hpp>
+#endif
 
 namespace onyx_font::internal {
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
     /// Load bitmap font from Windows FNT data
     struct win_bitmap_fon_loader {
         static bitmap_font load(const libexe::font_data& fd);
@@ -22,6 +26,7 @@ namespace onyx_font::internal {
     struct win_vector_fon_loader {
         static vector_font load(const libexe::font_data& fd);
     };
+#endif
 
     /// Load vector font from BGI CHR data
     struct bgi_font_loader {

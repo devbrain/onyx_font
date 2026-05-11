@@ -2,55 +2,26 @@
  * @file font_source.hh
  * @brief Unified font source abstraction for all font types.
  *
- * This file provides the font_source class, which wraps bitmap_font,
- * vector_font, or ttf_font to provide a consistent interface for
- * accessing metrics and rasterizing glyphs. This abstraction allows
- * the text rendering system to work with any font type seamlessly.
+ * `font_source` is the boundary between low-level font types (bitmap_font,
+ * vector_font, ttf_font) and the rendering pipeline (text_rasterizer,
+ * glyph_cache, text_renderer). Callers see a single uniform type and never
+ * need to know which underlying font shape is in use.
  *
- * @section source_overview Overview
+ * The class is PIMPL'd: the public header drags in the lightweight bitmap
+ * and vector font headers (their public API is small and always present),
+ * but TTF/FreeType state is hidden in the .cc. This means consumers that
+ * never call `from_ttf` / `from_ttf_bytes` do not transitively include
+ * `<onyx_font/ttf_font.hh>` or `<onyx_font/utils/freetype_font.hh>`, and the
+ * `freetype_font` destructor is not synthesised in their translation units.
  *
- * font_source is the bridge between low-level font data and the
- * high-level text rendering pipeline. It provides:
- * - Unified glyph metrics access
- * - Font-type-independent rasterization
- * - Kerning support (when available)
- * - Automatic fallback character handling
- *
- * @section source_architecture Architecture
- *
- * @code
- * +---------------+     +---------------+     +----------------+
- * | bitmap_font   |     | vector_font   |     | ttf_font       |
- * +-------+-------+     +-------+-------+     +--------+-------+
- *         |                     |                      |
- *         v                     v                      v
- *     +---+---------------------+----------------------+---+
- *     |              font_source (unified interface)       |
- *     +---+---------------------+----------------------+---+
- *                               |
- *                               v
- *                    +----------+-----------+
- *                    |   text_rasterizer    |
- *                    |   glyph_cache        |
- *                    |   text_renderer      |
- *                    +----------------------+
- * @endcode
- *
- * @section source_usage Usage Examples
- *
- * @code{.cpp}
- * // From bitmap font
- * bitmap_font bitmap = font_factory::load_bitmap(data, 0);
- * font_source src1 = font_source::from_bitmap(bitmap);
- *
- * // From TTF font
- * ttf_font ttf(ttf_data);
- * font_source src2 = font_source::from_ttf(ttf);
- *
- * // Use the same interface for both
- * auto metrics = src1.get_scaled_metrics(16.0f);
- * auto glyph_m = src1.get_glyph_metrics('A', 16.0f);
- * @endcode
+ * Two ownership models:
+ *   - **Borrowing**: `from_bitmap` / `from_vector` / `from_ttf(const ttf_font&)`
+ *     store a non-owning pointer; the underlying font must outlive the
+ *     font_source.
+ *   - **Owning**: `from_ttf_bytes(std::vector<uint8_t>)` moves bytes into the
+ *     font_source, which also owns its ttf_font + freetype_font instances.
+ *     Use this when the bytes are loaded specifically for the font_source
+ *     and have no other owner.
  *
  * @author Igor
  * @date 21/12/2025
@@ -64,290 +35,117 @@
 #include <onyx_font/text/text_style.hh>
 #include <onyx_font/bitmap_font.hh>
 #include <onyx_font/vector_font.hh>
-#include <onyx_font/ttf_font.hh>
-#include <onyx_font/utils/freetype_font.hh>
+#include <cstdint>
 #include <memory>
-#include <variant>
+#include <vector>
 
 namespace onyx_font {
+    // Forward-declared so the header doesn't require <onyx_font/ttf_font.hh>.
+    // Callers that actually invoke `from_ttf(const ttf_font&)` need to
+    // include that header themselves.
+    class ttf_font;
+
     /**
      * @brief Unified font wrapper for all font types.
      *
-     * Provides consistent access to metrics, glyph information, and
-     * rasterization across bitmap, vector, and TTF fonts. This abstraction
-     * is move-only (not copyable) due to internal resource ownership.
+     * Move-only. Constructors are static factories. Access to the
+     * underlying type is via `type()`; rasterization dispatches to the
+     * right backend internally.
      *
-     * @section font_source_features Features
-     *
-     * - **Unified metrics**: Same interface for all font types
-     * - **Type-aware scaling**: Handles scalable vs fixed-size fonts
-     * - **Kerning support**: When font provides kerning data
-     * - **Template rasterization**: Works with any raster_target
-     *
-     * @section font_source_lifetime Lifetime Considerations
-     *
-     * @warning The underlying font (bitmap_font, vector_font, or ttf_font)
-     *          must remain valid for the lifetime of the font_source.
-     *          font_source stores a pointer to the source font.
-     *
-     * @see text_rasterizer For text measurement and rendering
-     * @see glyph_cache For cached glyph rendering
+     * Lifetime: for the borrowing factories the source font must outlive
+     * the font_source. For the owning `from_ttf_bytes` overload the
+     * font_source owns its data.
      */
     class ONYX_FONT_EXPORT font_source {
     public:
-        /// @cond
         font_source(const font_source&) = delete;
         font_source& operator=(const font_source&) = delete;
-        /// @endcond
 
-        /**
-         * @brief Move constructor.
-         */
         font_source(font_source&&) noexcept;
-
-        /**
-         * @brief Move assignment operator.
-         */
         font_source& operator=(font_source&&) noexcept;
-
-        /**
-         * @brief Destructor.
-         */
         ~font_source();
 
-        /**
-         * @brief Create from bitmap font.
-         *
-         * @param font Bitmap font (must remain valid)
-         * @return font_source wrapping the bitmap font
-         *
-         * @note For bitmap fonts, the size parameter in scaling methods
-         *       is ignored - the native size is always used.
-         */
+        /// Wrap a non-owning bitmap font reference. The bitmap_font must
+        /// outlive this font_source.
         static font_source from_bitmap(const bitmap_font& font);
 
-        /**
-         * @brief Create from vector font.
-         *
-         * @param font Vector font (must remain valid)
-         * @return font_source wrapping the vector font
-         */
+        /// Wrap a non-owning vector font reference. Same lifetime contract.
         static font_source from_vector(const vector_font& font);
 
-        /**
-         * @brief Create from TTF font.
-         *
-         * Creates internal rasterizer for TTF glyph rendering.
-         *
-         * @param font TTF font (must remain valid)
-         * @return font_source wrapping the TTF font
-         */
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
+        /// Wrap a non-owning TTF font reference. The ttf_font must outlive
+        /// this font_source. Callers need `<onyx_font/ttf_font.hh>`.
         static font_source from_ttf(const ttf_font& font);
 
-        /**
-         * @brief Get the underlying font type.
-         * @return Font type enum
-         */
+        /// Take ownership of TTF bytes and build the font_source on top.
+        /// Bytes are moved into the font_source; no caller-side lifetime
+        /// management required. Returns an empty `std::nullopt`-equivalent
+        /// font_source on parse failure — check `is_valid()`.
+        static font_source from_ttf_bytes(std::vector<std::uint8_t> bytes,
+                                          int font_index = 0);
+#endif
+
+        /// True if this source was constructed successfully and can serve
+        /// glyphs. Use after a fallible factory like `from_ttf_bytes`.
+        [[nodiscard]] bool is_valid() const;
+
         [[nodiscard]] font_source_type type() const;
-
-        /**
-         * @brief Check if font has a specific glyph.
-         *
-         * @param codepoint Unicode codepoint
-         * @return true if glyph exists in font
-         */
         [[nodiscard]] bool has_glyph(char32_t codepoint) const;
-
-        /**
-         * @brief Get the default/fallback character.
-         *
-         * Returns the character to use when a requested glyph
-         * is not available in the font.
-         *
-         * @return Default character codepoint
-         */
         [[nodiscard]] char32_t default_char() const;
-
-        /**
-         * @brief Get scaled metrics for a given pixel size.
-         *
-         * Returns font-wide metrics (ascent, descent, line gap) scaled
-         * to the specified pixel height.
-         *
-         * @param size Pixel height (ignored for bitmap fonts)
-         * @return Scaled font metrics
-         */
         [[nodiscard]] scaled_metrics get_scaled_metrics(float size) const;
-
-        /**
-         * @brief Get metrics for a single glyph.
-         *
-         * Returns positioning and sizing information for a glyph
-         * at the specified size.
-         *
-         * @param codepoint Unicode codepoint
-         * @param size Pixel height
-         * @return Glyph metrics (advance, bearing, size)
-         */
         [[nodiscard]] glyph_metrics get_glyph_metrics(char32_t codepoint, float size) const;
-
-        /**
-         * @brief Get kerning between two characters.
-         *
-         * Returns the horizontal adjustment to apply between adjacent
-         * characters for improved appearance.
-         *
-         * @param first First codepoint
-         * @param second Second codepoint
-         * @param size Pixel height
-         * @return Kerning adjustment (add to advance_x)
-         *
-         * @note Returns 0 for fonts without kerning data.
-         */
         [[nodiscard]] float get_kerning(char32_t first, char32_t second, float size) const;
 
-        /**
-         * @brief Get native pixel height for bitmap fonts.
-         *
-         * Returns the native size of the font. For bitmap fonts,
-         * this is the only size that renders correctly. For scalable
-         * fonts (vector, TTF), returns 0.
-         *
-         * @return Native size, or 0 for scalable fonts
-         */
+        /// Native pixel height for bitmap fonts; 0 for scalable fonts.
         [[nodiscard]] float native_size() const;
 
-        /**
-         * @brief Rasterize a single glyph to target.
-         *
-         * Renders the specified glyph at the given position using
-         * the appropriate rendering method for the font type.
-         *
-         * @tparam Target Raster target type (must satisfy raster_target concept)
-         * @param codepoint Unicode codepoint
-         * @param size Pixel height for rendering
-         * @param target Raster target to write to
-         * @param x X position in target
-         * @param y Y position (baseline)
-         */
         template<raster_target Target>
         void rasterize_glyph(char32_t codepoint, float size,
                              Target& target, int x, int y) const;
 
-        /**
-         * @brief Rasterize a single glyph with styling (for vector fonts).
-         *
-         * Renders the specified glyph with style effects applied.
-         * Only meaningful for vector fonts; other font types ignore style.
-         *
-         * @tparam Target Raster target type
-         * @param codepoint Unicode codepoint
-         * @param size Pixel height for rendering
-         * @param target Raster target to write to
-         * @param x X position in target
-         * @param y Y position (baseline)
-         * @param style Rendering style options
-         */
         template<raster_target Target>
         void rasterize_styled_glyph(char32_t codepoint, float size,
                                     Target& target, int x, int y,
                                     const render_style& style) const;
 
     private:
-        /// Internal representation for bitmap font reference
-        struct bitmap_ref {
-            const bitmap_font* font;
-        };
+        struct impl;
+        std::unique_ptr<impl> m_impl;
 
-        /// Internal representation for vector font reference
-        struct vector_ref {
-            const vector_font* font;
-        };
+        font_source();
 
-        /// Internal representation for TTF font reference
-        struct ttf_ref {
-            const ttf_font* font;
-        };
+        // Type-erased dispatch (defined in .cc, branches on impl->kind).
+        // Templates above wrap the typed raster_target into these.
+        void rasterize_dispatch(char32_t codepoint, float size,
+                                void* target, int x, int y,
+                                void (*put_pixel)(void*, int, int, std::uint8_t),
+                                int width, int height) const;
 
-        std::variant<bitmap_ref, vector_ref, ttf_ref> m_font;
-
-        /// Owned rasterizer for TTF fonts (FreeType-based)
-        std::unique_ptr<freetype_font> m_rasterizer;
-
-        font_source() = default;
-
-        // Internal rasterization helpers (implemented in .cc)
-        void rasterize_bitmap_glyph(char32_t codepoint, float size,
-                                    void* target, int x, int y,
-                                    void (*put_pixel)(void*, int, int, uint8_t)) const;
-
-        void rasterize_vector_glyph(char32_t codepoint, float size,
-                                    void* target, int x, int y,
-                                    void (*put_pixel)(void*, int, int, uint8_t),
-                                    int width, int height) const;
-
-        void rasterize_styled_vector_glyph(char32_t codepoint, float size,
-                                           void* target, int x, int y,
-                                           void (*put_pixel)(void*, int, int, uint8_t),
-                                           int width, int height,
-                                           const render_style& style) const;
-
-        void rasterize_ttf_glyph(char32_t codepoint, float size,
-                                 void* target, int x, int y,
-                                 void (*put_pixel)(void*, int, int, uint8_t)) const;
-
-        void rasterize_styled_ttf_glyph(char32_t codepoint, float size,
-                                        void* target, int x, int y,
-                                        void (*put_pixel)(void*, int, int, uint8_t),
-                                        const render_style& style) const;
+        void rasterize_styled_dispatch(char32_t codepoint, float size,
+                                       void* target, int x, int y,
+                                       void (*put_pixel)(void*, int, int, std::uint8_t),
+                                       int width, int height,
+                                       const render_style& style) const;
     };
 
-    // Template implementation
     template<raster_target Target>
     void font_source::rasterize_glyph(char32_t codepoint, float size,
                                       Target& target, int x, int y) const {
-        // Type-erased callback that wraps the target
-        auto put_pixel = [](void* ctx, int px, int py, uint8_t alpha) {
+        auto put_pixel = [](void* ctx, int px, int py, std::uint8_t alpha) {
             static_cast<Target*>(ctx)->put_pixel(px, py, alpha);
         };
-
-        if (std::holds_alternative<bitmap_ref>(m_font)) {
-            rasterize_bitmap_glyph(codepoint, size, &target, x, y, put_pixel);
-        } else if (std::holds_alternative<vector_ref>(m_font)) {
-            rasterize_vector_glyph(codepoint, size, &target, x, y, put_pixel,
-                                   target.width(), target.height());
-        } else {
-            rasterize_ttf_glyph(codepoint, size, &target, x, y, put_pixel);
-        }
+        rasterize_dispatch(codepoint, size, &target, x, y, put_pixel,
+                           target.width(), target.height());
     }
 
     template<raster_target Target>
     void font_source::rasterize_styled_glyph(char32_t codepoint, float size,
-                                              Target& target, int x, int y,
-                                              const render_style& style) const {
-        auto put_pixel = [](void* ctx, int px, int py, uint8_t alpha) {
+                                             Target& target, int x, int y,
+                                             const render_style& style) const {
+        auto put_pixel = [](void* ctx, int px, int py, std::uint8_t alpha) {
             static_cast<Target*>(ctx)->put_pixel(px, py, alpha);
         };
-
-        if (std::holds_alternative<bitmap_ref>(m_font)) {
-            // Bitmap fonts don't support styling
-            rasterize_bitmap_glyph(codepoint, size, &target, x, y, put_pixel);
-        } else if (std::holds_alternative<vector_ref>(m_font)) {
-            // Vector fonts use stroke-based styling
-            if (style.needs_glyph_transform()) {
-                rasterize_styled_vector_glyph(codepoint, size, &target, x, y, put_pixel,
-                                              target.width(), target.height(), style);
-            } else {
-                rasterize_vector_glyph(codepoint, size, &target, x, y, put_pixel,
-                                       target.width(), target.height());
-            }
-        } else {
-            // TTF fonts use FreeType's proper bold/italic synthesis
-            if (style.needs_glyph_transform()) {
-                rasterize_styled_ttf_glyph(codepoint, size, &target, x, y, put_pixel, style);
-            } else {
-                rasterize_ttf_glyph(codepoint, size, &target, x, y, put_pixel);
-            }
-        }
+        rasterize_styled_dispatch(codepoint, size, &target, x, y, put_pixel,
+                                  target.width(), target.height(), style);
     }
 } // namespace onyx_font

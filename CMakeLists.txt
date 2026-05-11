@@ -41,6 +41,16 @@ set(NEUTRINO_ONYX_FONT_INSTALL OFF CACHE BOOL "Enable onyx_font installation")
 
 neutrino_define_library_options(onyx_font)
 
+# Loader axes — opt-out lets consumers drop heavy deps:
+#   LOADER_FON: Windows .FON / .FNT / OS/2 LX font resources (pulls libexe → mz-explode)
+#   LOADER_TTF: TrueType / OpenType / TTC + freetype-based converter (pulls FreeType)
+# Default ON for backwards compatibility; warlords-style consumers can turn
+# them OFF before FetchContent_MakeAvailable to shave several MB.
+option(NEUTRINO_ONYX_FONT_LOADER_FON
+    "Build the Windows/OS2 executable font (.FON/.FNT/LX) loader (pulls libexe)" ON)
+option(NEUTRINO_ONYX_FONT_LOADER_TTF
+    "Build the TrueType/OpenType loader and FreeType-backed converter (pulls FreeType)" ON)
+
 # Additional options
 neutrino_is_top_level(_onyx_font_is_top_level)
 if(_onyx_font_is_top_level)
@@ -141,5 +151,6 @@ if(_onyx_font_is_top_level)
     message(STATUS "  Build examples:  ${NEUTRINO_ONYX_FONT_BUILD_EXAMPLES}")
     message(STATUS "  Build demos:     ${NEUTRINO_ONYX_FONT_BUILD_DEMOS}")
     message(STATUS "  Build docs:      ${NEUTRINO_ONYX_FONT_BUILD_DOCS}")
+    message(STATUS "  Loaders:         FON=${NEUTRINO_ONYX_FONT_LOADER_FON} TTF=${NEUTRINO_ONYX_FONT_LOADER_TTF}")
     message(STATUS "")
 endif()

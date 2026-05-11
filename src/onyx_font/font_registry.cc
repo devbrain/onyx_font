@@ -4,13 +4,15 @@
 
 #include <onyx_font/font_registry.hh>
 #include <onyx_font/font_factory.hh>
-#include <libexe/libexe.hpp>
-#include <libexe/resources/parsers/os2_resource_parser.hpp>
 #include <failsafe/failsafe.hh>
 #include <mutex>
 #include <algorithm>
 
 #include "loader/loaders.hh"
+
+#if defined(ONYX_FONT_HAS_LOADER_FON)
+#include <libexe/libexe.hpp>
+#include <libexe/resources/parsers/os2_resource_parser.hpp>
 
 // Windows headers define RT_FONT as macro that conflicts with libexe enums
 #ifdef RT_FONT
@@ -19,6 +21,7 @@
 #ifdef RT_FD
 #undef RT_FD
 #endif
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
 namespace onyx_font {
 
@@ -43,6 +46,7 @@ namespace onyx_font {
             return std::equal(prefix.begin(), prefix.end(), data.begin());
         }
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         bool is_fnt_file(std::span<const uint8_t> data) {
             if (data.size() < 6) return false;
 
@@ -213,6 +217,7 @@ namespace onyx_font {
 
             return result;
         }
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
     }  // anonymous namespace
 
@@ -272,6 +277,7 @@ namespace onyx_font {
             }
         };
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Windows bitmap FON/FNT decoder
         class win_bitmap_fon_decoder_impl : public bitmap_font_decoder {
         public:
@@ -388,6 +394,7 @@ namespace onyx_font {
                 return internal::win_bitmap_fon_loader::load(fonts[index]);
             }
         };
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
     }  // anonymous namespace
 
@@ -454,6 +461,7 @@ namespace onyx_font {
             }
         };
 
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         // Windows vector FON/FNT decoder
         class win_vector_fon_decoder_impl : public vector_font_decoder {
         public:
@@ -570,6 +578,7 @@ namespace onyx_font {
                 return internal::win_vector_fon_loader::load(fonts[index]);
             }
         };
+#endif  // ONYX_FONT_HAS_LOADER_FON
 
     }  // anonymous namespace
 
@@ -579,6 +588,7 @@ namespace onyx_font {
 
     namespace {
 
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
         // TTF/OTF/TTC decoder
         class ttf_decoder_impl : public outline_font_decoder {
         public:
@@ -634,6 +644,7 @@ namespace onyx_font {
                 return ttf_font(data, static_cast<int>(index));
             }
         };
+#endif  // ONYX_FONT_HAS_LOADER_TTF
 
     }  // anonymous namespace
 
@@ -661,6 +672,7 @@ namespace onyx_font {
         return result;
     }
 
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
     std::vector<ttf_font> outline_font_decoder::load_all(
         std::span<const std::uint8_t> data) const {
         std::vector<ttf_font> result;
@@ -670,6 +682,7 @@ namespace onyx_font {
         }
         return result;
     }
+#endif  // ONYX_FONT_HAS_LOADER_TTF
 
     // =========================================================================
     // Registry Implementation
@@ -696,14 +709,20 @@ namespace onyx_font {
     void font_registry::register_builtin_decoders() {
         // Bitmap decoders
         m_impl->bitmap_decoders.push_back(std::make_unique<gem_font_decoder_impl>());
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         m_impl->bitmap_decoders.push_back(std::make_unique<win_bitmap_fon_decoder_impl>());
+#endif
 
         // Vector decoders
         m_impl->vector_decoders.push_back(std::make_unique<bgi_font_decoder_impl>());
+#if defined(ONYX_FONT_HAS_LOADER_FON)
         m_impl->vector_decoders.push_back(std::make_unique<win_vector_fon_decoder_impl>());
+#endif
 
         // Outline decoders
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
         m_impl->outline_decoders.push_back(std::make_unique<ttf_decoder_impl>());
+#endif
     }
 
     // Registration methods

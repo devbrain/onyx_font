@@ -9,9 +9,11 @@ include(FetchContent)
 # Dependencies
 # =============================================================================
 
-# mz-explode - Windows executable format library
-include(${NEUTRINO_CMAKE_DIR}/deps/mz-explode.cmake)
-neutrino_fetch_mzexplode()
+# mz-explode - Windows executable format library (only needed for FON loader)
+if(NEUTRINO_ONYX_FONT_LOADER_FON)
+    include(${NEUTRINO_CMAKE_DIR}/deps/mz-explode.cmake)
+    neutrino_fetch_mzexplode()
+endif()
 
 # failsafe - Error handling library
 include(${NEUTRINO_CMAKE_DIR}/deps/failsafe.cmake)
@@ -26,7 +28,8 @@ include(${NEUTRINO_CMAKE_DIR}/deps/euler.cmake)
 neutrino_fetch_euler()
 
 # FreeType - High-quality font rendering with proper hinting and styling
-if(NOT TARGET freetype)
+# (only needed for TTF / OTF / TTC support and the freetype-based converter)
+if(NEUTRINO_ONYX_FONT_LOADER_TTF AND NOT TARGET freetype)
     include(FetchContent)
 
     # Disable all optional dependencies for minimal portable build
@@ -83,12 +86,6 @@ target_sources(onyx_font PRIVATE
     vector_font.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/vector_font.hh
 
-    ttf_font.cc
-    ${PROJECT_SOURCE_DIR}/include/onyx_font/ttf_font.hh
-
-    utils/freetype_font.cc
-    ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/freetype_font.hh
-
     font_factory.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/font_factory.hh
 
@@ -101,10 +98,8 @@ target_sources(onyx_font PRIVATE
     ${PROJECT_SOURCE_DIR}/include/onyx_font/font_registry.hh
     ${PROJECT_SOURCE_DIR}/include/onyx_font/decoder.hh
 
-    loader/win_fon.cc
     loader/loaders.hh
 
-    loader/win_vector_fon.cc
     loader/bgi_fon.cc
     loader/gem_fon.cc
 
@@ -127,11 +122,31 @@ target_sources(onyx_font PRIVATE
     ${PROJECT_SOURCE_DIR}/include/onyx_font/text/glyph_cache.hh
     ${PROJECT_SOURCE_DIR}/include/onyx_font/text/glyph_rasterizer.hh
     ${PROJECT_SOURCE_DIR}/include/onyx_font/text/text_renderer.hh
-
-    # Font conversion utilities
-    font_converter.cc
-    ${PROJECT_SOURCE_DIR}/include/onyx_font/font_converter.hh
 )
+
+# FON (Windows .FON / .FNT, OS/2 LX font resources) loader — pulls libexe
+if(NEUTRINO_ONYX_FONT_LOADER_FON)
+    target_sources(onyx_font PRIVATE
+        loader/win_fon.cc
+        loader/win_vector_fon.cc
+    )
+    target_compile_definitions(onyx_font PRIVATE ONYX_FONT_HAS_LOADER_FON=1)
+endif()
+
+# TTF / OTF / TTC loader and FreeType-backed converter — pulls FreeType
+if(NEUTRINO_ONYX_FONT_LOADER_TTF)
+    target_sources(onyx_font PRIVATE
+        ttf_font.cc
+        ${PROJECT_SOURCE_DIR}/include/onyx_font/ttf_font.hh
+
+        utils/freetype_font.cc
+        ${PROJECT_SOURCE_DIR}/include/onyx_font/utils/freetype_font.hh
+
+        font_converter.cc
+        ${PROJECT_SOURCE_DIR}/include/onyx_font/font_converter.hh
+    )
+    target_compile_definitions(onyx_font PRIVATE ONYX_FONT_HAS_LOADER_TTF=1)
+endif()
 
 # =============================================================================
 # Target Configuration
@@ -153,10 +168,16 @@ target_link_libraries(onyx_font
         euler::euler
     PRIVATE
         failsafe
-        neutrino::libexe
         onyx_font_parsers
-        freetype
 )
+
+if(NEUTRINO_ONYX_FONT_LOADER_FON)
+    target_link_libraries(onyx_font PRIVATE neutrino::libexe)
+endif()
+
+if(NEUTRINO_ONYX_FONT_LOADER_TTF)
+    target_link_libraries(onyx_font PRIVATE freetype)
+endif()
 
 # Generate portable export header
 generate_export_header(onyx_font
