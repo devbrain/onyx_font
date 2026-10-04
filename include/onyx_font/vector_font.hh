@@ -91,6 +91,7 @@
 #pragma once
 
 #include <onyx_font/export.h>
+#include <onyx_font/charset.hh>
 #include <string>
 #include <cstdint>
 #include <vector>
@@ -335,6 +336,12 @@ namespace onyx_font {
         [[nodiscard]] uint8_t get_default_char() const;
 
         /**
+         * @brief Get the character set of the glyph codes.
+         * @return The file's charset for Windows vector fonts, else latin1
+         */
+        [[nodiscard]] charset get_charset() const;
+
+        /**
          * @brief Get font-level metrics.
          * @return Reference to font metrics
          */
@@ -363,6 +370,7 @@ namespace onyx_font {
         uint8_t m_first_char{};          ///< First character in font
         uint8_t m_last_char{};           ///< Last character in font
         uint8_t m_default_char{};        ///< Fallback character
+        charset m_charset = charset::latin1; ///< Character set of the glyph codes
 
         vector_font_metrics m_metrics{}; ///< Font-level metrics
         std::vector<vector_glyph> m_glyphs;  ///< Glyph data

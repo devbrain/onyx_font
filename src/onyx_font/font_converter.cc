@@ -98,6 +98,7 @@ bitmap_font font_converter::from_vector(
     result.m_last_char = last_char;
     result.m_default_char = font.get_default_char();
     result.m_break_char = ' ';
+    result.m_charset = font.get_charset();  // same glyph codes as the source
 
     // Convert font metrics
     result.m_metrics.pixel_height = static_cast<uint16_t>(std::ceil(pixel_height));

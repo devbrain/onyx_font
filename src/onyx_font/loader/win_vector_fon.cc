@@ -15,6 +15,7 @@ namespace onyx_font::internal {
         result.m_first_char = fd.first_char;
         result.m_last_char = fd.last_char;
         result.m_default_char = fd.default_char;
+        result.m_charset = charset_from_windows(fd.charset);
 
         // Populate metrics
         result.m_metrics.ascent = static_cast<int16_t>(fd.ascent);

@@ -156,11 +156,19 @@ namespace onyx_font {
         std::string name = "BIOS";
 
         /**
+         * @brief Character set of the glyph codes.
+         *
+         * The standard BIOS options (vga_8x8, ega_8x14, vga_8x16) use
+         * Code Page 437.
+         */
+        charset encoding = charset::latin1;
+
+        /**
          * @brief Create options for standard 8x8 VGA font.
          * @return Options configured for 8x8 VGA font (2048 bytes)
          */
         static raw_font_options vga_8x8() {
-            return {8, 8, 0, 256, true, "VGA 8x8"};
+            return {8, 8, 0, 256, true, "VGA 8x8", charset::cp437};
         }
 
         /**
@@ -168,7 +176,7 @@ namespace onyx_font {
          * @return Options configured for 8x14 EGA font (3584 bytes)
          */
         static raw_font_options ega_8x14() {
-            return {8, 14, 0, 256, true, "EGA 8x14"};
+            return {8, 14, 0, 256, true, "EGA 8x14", charset::cp437};
         }
 
         /**
@@ -176,7 +184,7 @@ namespace onyx_font {
          * @return Options configured for 8x16 VGA font (4096 bytes)
          */
         static raw_font_options vga_8x16() {
-            return {8, 16, 0, 256, true, "VGA 8x16"};
+            return {8, 16, 0, 256, true, "VGA 8x16", charset::cp437};
         }
     };
 

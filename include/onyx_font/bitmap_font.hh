@@ -103,6 +103,7 @@
 #pragma once
 
 #include <onyx_font/export.h>
+#include <onyx_font/charset.hh>
 #include <string>
 #include <cstdint>
 #include <optional>
@@ -299,6 +300,7 @@ namespace onyx_font {
          * @param metrics Font-level metrics (height, ascent, etc.)
          * @param spacing Per-glyph ABC spacing (size must be last_char - first_char + 1)
          * @param storage Glyph bitmap storage (must contain same number of glyphs as spacing)
+         * @param encoding Character set of the glyph codes
          */
         bitmap_font(std::string name,
                     uint8_t first_char,
@@ -307,7 +309,8 @@ namespace onyx_font {
                     uint8_t break_char,
                     font_metrics metrics,
                     std::vector<glyph_spacing> spacing,
-                    bitmap_storage storage);
+                    bitmap_storage storage,
+                    charset encoding = charset::latin1);
 
         /**
          * @brief Get the font's display name.
@@ -342,6 +345,16 @@ namespace onyx_font {
          * @return Break character code (typically space, 0x20)
          */
         [[nodiscard]] uint8_t get_break_char() const;
+
+        /**
+         * @brief Get the character set of the glyph codes.
+         *
+         * font_source uses it to find the glyph of a Unicode code point
+         * (see encode_char).
+         *
+         * @return CP437 for the BIOS fonts, the file's charset for Windows fonts, else latin1
+         */
+        [[nodiscard]] charset get_charset() const;
 
         /**
          * @brief Get font-level metrics.
@@ -387,6 +400,7 @@ namespace onyx_font {
         uint8_t m_last_char{};           ///< Last character in font
         uint8_t m_default_char{};        ///< Fallback character
         uint8_t m_break_char{};          ///< Word break character
+        charset m_charset = charset::latin1; ///< Character set of the glyph codes
 
         font_metrics m_metrics;          ///< Font-level metrics
         std::vector<glyph_spacing> m_spacing;  ///< Per-glyph spacing

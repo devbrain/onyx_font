@@ -14,6 +14,7 @@ A modern C++20 library for loading, manipulating, and rendering fonts from multi
 - **High-quality rendering** - Antialiased text rasterization with subpixel positioning
 - **GPU-friendly architecture** - Texture atlas with glyph caching for hardware-accelerated rendering
 - **Full Unicode support** - UTF-8 text handling with complete codepoint iteration
+- **Character sets for 8-bit fonts** - Unicode text finds the right glyph in CP437 (the BIOS fonts, OEM fonts) and Windows-1252 fonts; Windows fonts take theirs from the file
 - **Text layout** - Measurement, alignment, and word wrapping
 - **Font conversion** - Convert vector and TrueType fonts to bitmap format
 - **Header-only dependencies** - All dependencies are fetched automatically via CMake

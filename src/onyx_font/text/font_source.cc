@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <utility>
 
 namespace onyx_font {
@@ -123,19 +124,48 @@ font_source_type font_source::type() const {
 }
 
 // ---------------------------------------------------------------------------
+// Glyph lookup for 8-bit fonts: code points become glyph codes through the
+// font's character set.
+// ---------------------------------------------------------------------------
+namespace {
+
+// The glyph code to draw for a code point: its own if the font has it, else
+// the font's default character; nullopt if the character set has no such
+// character, or neither code is in the font.
+std::optional<std::uint8_t> bitmap_code(const bitmap_font& font, char32_t codepoint) {
+    const auto ch = encode_char(font.get_charset(), codepoint);
+    if (!ch) return std::nullopt;
+    const auto in_font = [&font](std::uint8_t c) {
+        return c >= font.get_first_char() && c <= font.get_last_char();
+    };
+    if (in_font(*ch)) return ch;
+    if (in_font(font.get_default_char())) return font.get_default_char();
+    return std::nullopt;
+}
+
+// The glyph to draw for a code point, same rules as bitmap_code.
+const vector_glyph* vector_glyph_of(const vector_font& font, char32_t codepoint) {
+    const auto ch = encode_char(font.get_charset(), codepoint);
+    if (!ch) return nullptr;
+    if (const vector_glyph* glyph = font.get_glyph(*ch)) return glyph;
+    return font.get_glyph(font.get_default_char());
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------
 // Metrics / queries
 // ---------------------------------------------------------------------------
 bool font_source::has_glyph(char32_t codepoint) const {
     switch (m_impl->k) {
         case impl::kind::bitmap: {
-            if (codepoint > 255) return false;
             const auto& font = *m_impl->bm;
-            auto ch = static_cast<std::uint8_t>(codepoint);
-            return ch >= font.get_first_char() && ch <= font.get_last_char();
+            const auto ch = encode_char(font.get_charset(), codepoint);
+            return ch && *ch >= font.get_first_char() && *ch <= font.get_last_char();
         }
         case impl::kind::vector: {
-            if (codepoint > 255) return false;
-            return m_impl->vec->has_glyph(static_cast<std::uint8_t>(codepoint));
+            const auto ch = encode_char(m_impl->vec->get_charset(), codepoint);
+            return ch && m_impl->vec->has_glyph(*ch);
         }
         case impl::kind::ttf:
 #if defined(ONYX_FONT_HAS_LOADER_TTF)
@@ -151,8 +181,8 @@ bool font_source::has_glyph(char32_t codepoint) const {
 
 char32_t font_source::default_char() const {
     switch (m_impl->k) {
-        case impl::kind::bitmap: return m_impl->bm->get_default_char();
-        case impl::kind::vector: return m_impl->vec->get_default_char();
+        case impl::kind::bitmap: return decode_char(m_impl->bm->get_charset(), m_impl->bm->get_default_char());
+        case impl::kind::vector: return decode_char(m_impl->vec->get_charset(), m_impl->vec->get_default_char());
         case impl::kind::ttf:    return U'?';
         case impl::kind::none:   return U'?';
     }
@@ -202,16 +232,10 @@ glyph_metrics font_source::get_glyph_metrics(char32_t codepoint, float size) con
 
     switch (m_impl->k) {
         case impl::kind::bitmap: {
-            if (codepoint > 255) return result;
             const auto& font = *m_impl->bm;
-            auto ch = static_cast<std::uint8_t>(codepoint);
-
-            if (ch < font.get_first_char() || ch > font.get_last_char()) {
-                ch = font.get_default_char();
-                if (ch < font.get_first_char() || ch > font.get_last_char()) {
-                    return result;
-                }
-            }
+            const auto code = bitmap_code(font, codepoint);
+            if (!code) return result;
+            const std::uint8_t ch = *code;
 
             const auto& spacing = font.get_spacing(ch);
             bitmap_view glyph = font.get_glyph(ch);
@@ -233,15 +257,9 @@ glyph_metrics font_source::get_glyph_metrics(char32_t codepoint, float size) con
             break;
         }
         case impl::kind::vector: {
-            if (codepoint > 255) return result;
             const auto& font = *m_impl->vec;
-            auto ch = static_cast<std::uint8_t>(codepoint);
-
-            const vector_glyph* glyph = font.get_glyph(ch);
-            if (!glyph) {
-                glyph = font.get_glyph(font.get_default_char());
-                if (!glyph) return result;
-            }
+            const vector_glyph* glyph = vector_glyph_of(font, codepoint);
+            if (!glyph) return result;
 
             const auto& metrics = font.get_metrics();
             float scale = size / static_cast<float>(metrics.pixel_height);
@@ -363,15 +381,9 @@ inline float apply_shear(float x, float y, float origin_y, float shear) {
 void rasterize_bitmap(const bitmap_font& font, char32_t codepoint,
                       void* target, int x, int y,
                       void (*put_pixel)(void*, int, int, std::uint8_t)) {
-    if (codepoint > 255) return;
-    auto ch = static_cast<std::uint8_t>(codepoint);
-
-    if (ch < font.get_first_char() || ch > font.get_last_char()) {
-        ch = font.get_default_char();
-        if (ch < font.get_first_char() || ch > font.get_last_char()) {
-            return;
-        }
-    }
+    const auto code = bitmap_code(font, codepoint);
+    if (!code) return;
+    const std::uint8_t ch = *code;
 
     const auto& spacing = font.get_spacing(ch);
     bitmap_view glyph = font.get_glyph(ch);
@@ -396,14 +408,8 @@ void rasterize_vector(const vector_font& font, char32_t codepoint, float size,
                       void* target, int x, int y,
                       void (*put_pixel)(void*, int, int, std::uint8_t),
                       int width, int height) {
-    if (codepoint > 255) return;
-    auto ch = static_cast<std::uint8_t>(codepoint);
-
-    const vector_glyph* glyph = font.get_glyph(ch);
-    if (!glyph) {
-        glyph = font.get_glyph(font.get_default_char());
-        if (!glyph) return;
-    }
+    const vector_glyph* glyph = vector_glyph_of(font, codepoint);
+    if (!glyph) return;
 
     const auto& metrics = font.get_metrics();
     float scale = size / static_cast<float>(metrics.pixel_height);
@@ -447,14 +453,8 @@ void rasterize_styled_vector(const vector_font& font, char32_t codepoint, float 
                              void (*put_pixel)(void*, int, int, std::uint8_t),
                              int width, int height,
                              const render_style& style) {
-    if (codepoint > 255) return;
-    auto ch = static_cast<std::uint8_t>(codepoint);
-
-    const vector_glyph* glyph = font.get_glyph(ch);
-    if (!glyph) {
-        glyph = font.get_glyph(font.get_default_char());
-        if (!glyph) return;
-    }
+    const vector_glyph* glyph = vector_glyph_of(font, codepoint);
+    if (!glyph) return;
 
     const auto& metrics = font.get_metrics();
     float scale = size / static_cast<float>(metrics.pixel_height);

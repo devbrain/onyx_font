@@ -24,6 +24,10 @@ namespace onyx_font {
         return m_default_char;
     }
 
+    charset vector_font::get_charset() const {
+        return m_charset;
+    }
+
     const vector_font_metrics& vector_font::get_metrics() const {
         return m_metrics;
     }

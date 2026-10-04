@@ -80,6 +80,9 @@ add_library(neutrino::onyx_font ALIAS onyx_font)
 add_library(onyx::font ALIAS onyx_font)
 
 target_sources(onyx_font PRIVATE
+    charset.cc
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/charset.hh
+
     bitmap_font.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/bitmap_font.hh
 

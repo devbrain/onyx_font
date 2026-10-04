@@ -15,12 +15,14 @@ namespace onyx_font {
                              uint8_t break_char,
                              font_metrics metrics,
                              std::vector<glyph_spacing> spacing,
-                             bitmap_storage storage)
+                             bitmap_storage storage,
+                             charset encoding)
         : m_name(std::move(name)),
           m_first_char(first_char),
           m_last_char(last_char),
           m_default_char(default_char),
           m_break_char(break_char),
+          m_charset(encoding),
           m_metrics(metrics),
           m_spacing(std::move(spacing)),
           m_storage(std::move(storage)) {
@@ -44,6 +46,10 @@ namespace onyx_font {
 
     uint8_t bitmap_font::get_break_char() const {
         return m_break_char;
+    }
+
+    charset bitmap_font::get_charset() const {
+        return m_charset;
     }
 
     const font_metrics& bitmap_font::get_metrics() const {

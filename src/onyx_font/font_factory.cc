@@ -874,6 +874,7 @@ namespace onyx_font {
         result.m_last_char = static_cast<uint8_t>(options.first_char + options.char_count - 1);
         result.m_default_char = '?';
         result.m_break_char = ' ';
+        result.m_charset = options.encoding;
 
         // Set metrics
         result.m_metrics.pixel_height = options.char_height;

@@ -33,6 +33,7 @@ add_executable(onyxfont_unittest
     test_glyph_rasterizer.cc
     test_text_rendering.cc
     test_font_converter.cc
+    test_charset.cc
 )
 
 target_link_libraries(onyxfont_unittest
