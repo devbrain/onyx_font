@@ -95,6 +95,49 @@ TEST_SUITE("charset") {
         }
     }
 
+    TEST_CASE("a caller's code page") {
+        code_page page;
+        for (unsigned i = 0; i < 64; ++i) {
+            page.high[64 + i] = 0x0410 + i; // 0xC0-0xFF: Cyrillic A to ya, as Windows-1251
+        }
+        CHECK(encode_char(page, U'A') == uint8_t{'A'});
+        CHECK(encode_char(page, U'\u0410') == uint8_t{0xC0});
+        CHECK(encode_char(page, U'\u044F') == uint8_t{0xFF});
+        CHECK_FALSE(encode_char(page, U'\u00E9').has_value()); // not in it
+        CHECK(decode_char(page, 0xC1) == U'\u0411');
+        CHECK(decode_char(page, 0x80) == char32_t{0}); // left empty
+        CHECK(decode_char(page, 'z') == U'z');
+    }
+
+    TEST_CASE("font_source reads glyph codes through a caller's code page") {
+        // A raw latin1 font whose glyph of byte b is b's bits in its first row
+        std::vector<uint8_t> data(256 * 8, 0);
+        for (unsigned b = 0; b < 256; ++b) {
+            data[b * 8] = static_cast<uint8_t>(b);
+        }
+        raw_font_options opts;
+        opts.char_height = 8;
+        const bitmap_font font = font_factory::load_raw(data, opts);
+        code_page page;
+        page.high[0x40] = U'\u0410'; // byte 0xC0
+        auto source = font_source::from_bitmap(font);
+        CHECK(source.has_glyph(U'\u00C0'));
+        CHECK_FALSE(source.has_glyph(U'\u0410'));
+        source.set_code_page(page);
+        CHECK(source.has_glyph(U'\u0410'));
+        CHECK_FALSE(source.has_glyph(U'\u00C0'));
+        CHECK(source.has_glyph(U'A'));
+        std::vector<uint8_t> buffer(8 * 8, 0);
+        grayscale_target target(buffer.data(), 8, 8);
+        source.rasterize_glyph(U'\u0410', 8.0f, target, 0, font.get_metrics().ascent);
+        std::vector<uint8_t> row(buffer.begin(), buffer.begin() + 8);
+        for (auto& p : row) p = p ? 1 : 0;
+        CHECK(row == std::vector<uint8_t>{1, 1, 0, 0, 0, 0, 0, 0}); // 0xC0's bits
+        CHECK(source.get_glyph_metrics(U'\u0410', 8.0f).advance_x > 0);
+        source.set_code_page(std::nullopt);
+        CHECK(source.has_glyph(U'\u00C0'));
+    }
+
     TEST_CASE("Windows charset values") {
         CHECK(charset_from_windows(0) == charset::cp1252);
         CHECK(charset_from_windows(255) == charset::cp437);

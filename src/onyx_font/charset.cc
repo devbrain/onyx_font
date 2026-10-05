@@ -105,6 +105,17 @@ namespace onyx_font {
         return code;
     }
 
+    std::optional<std::uint8_t> encode_char(const code_page& page, char32_t codepoint) {
+        if (codepoint < 0x80) {
+            return static_cast<std::uint8_t>(codepoint);
+        }
+        return find(page.high, codepoint, 0x80);
+    }
+
+    char32_t decode_char(const code_page& page, std::uint8_t code) {
+        return code < 0x80 ? char32_t{code} : page.high[code - 0x80u];
+    }
+
     charset charset_from_windows(std::uint8_t windows_charset) {
         switch (windows_charset) {
             case 0:   return charset::cp1252; // ANSI_CHARSET

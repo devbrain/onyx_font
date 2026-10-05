@@ -38,6 +38,7 @@ struct font_source::impl {
 
     const bitmap_font* bm = nullptr;
     const vector_font* vec = nullptr;
+    std::optional<code_page> page;                 ///< overrides the 8-bit font's charset
 
 #if defined(ONYX_FONT_HAS_LOADER_TTF)
     const ttf_font* tt = nullptr;                  ///< borrowing variant
@@ -113,6 +114,14 @@ bool font_source::is_valid() const {
     return m_impl && m_impl->k != impl::kind::none;
 }
 
+void font_source::set_code_page(std::optional<code_page> page) {
+    m_impl->page = page;
+}
+
+const code_page* font_source::page() const {
+    return m_impl->page ? &*m_impl->page : nullptr;
+}
+
 font_source_type font_source::type() const {
     switch (m_impl->k) {
         case impl::kind::bitmap: return font_source_type::bitmap;
@@ -129,11 +138,16 @@ font_source_type font_source::type() const {
 // ---------------------------------------------------------------------------
 namespace {
 
+// The glyph code of a code point: through the caller's code page if one is set, else the font's charset
+std::optional<std::uint8_t> encode(charset set, const code_page* page, char32_t codepoint) {
+    return page ? encode_char(*page, codepoint) : encode_char(set, codepoint);
+}
+
 // The glyph code to draw for a code point: its own if the font has it, else
 // the font's default character; nullopt if the character set has no such
 // character, or neither code is in the font.
-std::optional<std::uint8_t> bitmap_code(const bitmap_font& font, char32_t codepoint) {
-    const auto ch = encode_char(font.get_charset(), codepoint);
+std::optional<std::uint8_t> bitmap_code(const bitmap_font& font, const code_page* page, char32_t codepoint) {
+    const auto ch = encode(font.get_charset(), page, codepoint);
     if (!ch) return std::nullopt;
     const auto in_font = [&font](std::uint8_t c) {
         return c >= font.get_first_char() && c <= font.get_last_char();
@@ -144,8 +158,8 @@ std::optional<std::uint8_t> bitmap_code(const bitmap_font& font, char32_t codepo
 }
 
 // The glyph to draw for a code point, same rules as bitmap_code.
-const vector_glyph* vector_glyph_of(const vector_font& font, char32_t codepoint) {
-    const auto ch = encode_char(font.get_charset(), codepoint);
+const vector_glyph* vector_glyph_of(const vector_font& font, const code_page* page, char32_t codepoint) {
+    const auto ch = encode(font.get_charset(), page, codepoint);
     if (!ch) return nullptr;
     if (const vector_glyph* glyph = font.get_glyph(*ch)) return glyph;
     return font.get_glyph(font.get_default_char());
@@ -160,11 +174,11 @@ bool font_source::has_glyph(char32_t codepoint) const {
     switch (m_impl->k) {
         case impl::kind::bitmap: {
             const auto& font = *m_impl->bm;
-            const auto ch = encode_char(font.get_charset(), codepoint);
+            const auto ch = encode(font.get_charset(), page(), codepoint);
             return ch && *ch >= font.get_first_char() && *ch <= font.get_last_char();
         }
         case impl::kind::vector: {
-            const auto ch = encode_char(m_impl->vec->get_charset(), codepoint);
+            const auto ch = encode(m_impl->vec->get_charset(), page(), codepoint);
             return ch && m_impl->vec->has_glyph(*ch);
         }
         case impl::kind::ttf:
@@ -181,8 +195,12 @@ bool font_source::has_glyph(char32_t codepoint) const {
 
 char32_t font_source::default_char() const {
     switch (m_impl->k) {
-        case impl::kind::bitmap: return decode_char(m_impl->bm->get_charset(), m_impl->bm->get_default_char());
-        case impl::kind::vector: return decode_char(m_impl->vec->get_charset(), m_impl->vec->get_default_char());
+        case impl::kind::bitmap:
+            return m_impl->page ? decode_char(*m_impl->page, m_impl->bm->get_default_char())
+                                : decode_char(m_impl->bm->get_charset(), m_impl->bm->get_default_char());
+        case impl::kind::vector:
+            return m_impl->page ? decode_char(*m_impl->page, m_impl->vec->get_default_char())
+                                : decode_char(m_impl->vec->get_charset(), m_impl->vec->get_default_char());
         case impl::kind::ttf:    return U'?';
         case impl::kind::none:   return U'?';
     }
@@ -233,7 +251,7 @@ glyph_metrics font_source::get_glyph_metrics(char32_t codepoint, float size) con
     switch (m_impl->k) {
         case impl::kind::bitmap: {
             const auto& font = *m_impl->bm;
-            const auto code = bitmap_code(font, codepoint);
+            const auto code = bitmap_code(font, page(), codepoint);
             if (!code) return result;
             const std::uint8_t ch = *code;
 
@@ -258,7 +276,7 @@ glyph_metrics font_source::get_glyph_metrics(char32_t codepoint, float size) con
         }
         case impl::kind::vector: {
             const auto& font = *m_impl->vec;
-            const vector_glyph* glyph = vector_glyph_of(font, codepoint);
+            const vector_glyph* glyph = vector_glyph_of(font, page(), codepoint);
             if (!glyph) return result;
 
             const auto& metrics = font.get_metrics();
@@ -378,10 +396,10 @@ inline float apply_shear(float x, float y, float origin_y, float shear) {
     return x + shear * (origin_y - y);
 }
 
-void rasterize_bitmap(const bitmap_font& font, char32_t codepoint,
+void rasterize_bitmap(const bitmap_font& font, const code_page* page, char32_t codepoint,
                       void* target, int x, int y,
                       void (*put_pixel)(void*, int, int, std::uint8_t)) {
-    const auto code = bitmap_code(font, codepoint);
+    const auto code = bitmap_code(font, page, codepoint);
     if (!code) return;
     const std::uint8_t ch = *code;
 
@@ -404,11 +422,11 @@ void rasterize_bitmap(const bitmap_font& font, char32_t codepoint,
     }
 }
 
-void rasterize_vector(const vector_font& font, char32_t codepoint, float size,
+void rasterize_vector(const vector_font& font, const code_page* page, char32_t codepoint, float size,
                       void* target, int x, int y,
                       void (*put_pixel)(void*, int, int, std::uint8_t),
                       int width, int height) {
-    const vector_glyph* glyph = vector_glyph_of(font, codepoint);
+    const vector_glyph* glyph = vector_glyph_of(font, page, codepoint);
     if (!glyph) return;
 
     const auto& metrics = font.get_metrics();
@@ -448,12 +466,12 @@ void rasterize_vector(const vector_font& font, char32_t codepoint, float size,
     }
 }
 
-void rasterize_styled_vector(const vector_font& font, char32_t codepoint, float size,
+void rasterize_styled_vector(const vector_font& font, const code_page* page, char32_t codepoint, float size,
                              void* target, int x, int y,
                              void (*put_pixel)(void*, int, int, std::uint8_t),
                              int width, int height,
                              const render_style& style) {
-    const vector_glyph* glyph = vector_glyph_of(font, codepoint);
+    const vector_glyph* glyph = vector_glyph_of(font, page, codepoint);
     if (!glyph) return;
 
     const auto& metrics = font.get_metrics();
@@ -571,10 +589,10 @@ void font_source::rasterize_dispatch(char32_t codepoint, float size,
                                      int width, int height) const {
     switch (m_impl->k) {
         case impl::kind::bitmap:
-            rasterize_bitmap(*m_impl->bm, codepoint, target, x, y, put_pixel);
+            rasterize_bitmap(*m_impl->bm, page(), codepoint, target, x, y, put_pixel);
             return;
         case impl::kind::vector:
-            rasterize_vector(*m_impl->vec, codepoint, size,
+            rasterize_vector(*m_impl->vec, page(), codepoint, size,
                              target, x, y, put_pixel, width, height);
             return;
         case impl::kind::ttf:
@@ -596,15 +614,15 @@ void font_source::rasterize_styled_dispatch(char32_t codepoint, float size,
     switch (m_impl->k) {
         case impl::kind::bitmap:
             // Bitmap fonts ignore styling.
-            rasterize_bitmap(*m_impl->bm, codepoint, target, x, y, put_pixel);
+            rasterize_bitmap(*m_impl->bm, page(), codepoint, target, x, y, put_pixel);
             return;
         case impl::kind::vector:
             if (style.needs_glyph_transform()) {
-                rasterize_styled_vector(*m_impl->vec, codepoint, size,
+                rasterize_styled_vector(*m_impl->vec, page(), codepoint, size,
                                         target, x, y, put_pixel,
                                         width, height, style);
             } else {
-                rasterize_vector(*m_impl->vec, codepoint, size,
+                rasterize_vector(*m_impl->vec, page(), codepoint, size,
                                  target, x, y, put_pixel, width, height);
             }
             return;

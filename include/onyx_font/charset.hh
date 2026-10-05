@@ -19,6 +19,7 @@
 #pragma once
 
 #include <onyx_font/export.h>
+#include <array>
 #include <cstdint>
 #include <optional>
 
@@ -72,11 +73,33 @@ namespace onyx_font {
     [[nodiscard]] ONYX_FONT_EXPORT char32_t decode_char(charset set, std::uint8_t code);
 
     /**
+     * @brief A code page the caller supplies, for fonts whose character set onyx_font doesn't know.
+     *
+     * Bytes 0x00-0x7F are ASCII; `high[i]` is the code point byte 0x80 + i shows, 0 for none.
+     * A Windows font of charset 204 (Cyrillic) loads as charset::latin1; given Windows-1251's table, `font_source`
+     * draws its Cyrillic letters (see `font_source::set_code_page`).
+     */
+    struct code_page {
+        std::array<char32_t, 128> high{};
+    };
+
+    /**
+     * @brief The glyph code of a code point in a caller's code page.
+     * @return The byte, or nullopt if the code page has no such character
+     */
+    [[nodiscard]] ONYX_FONT_EXPORT std::optional<std::uint8_t> encode_char(const code_page& page, char32_t codepoint);
+
+    /**
+     * @brief The code point a glyph code shows in a caller's code page; 0 for a byte it leaves empty.
+     */
+    [[nodiscard]] ONYX_FONT_EXPORT char32_t decode_char(const code_page& page, std::uint8_t code);
+
+    /**
      * @brief The character set named by a Windows font's `dfCharSet` field.
      *
      * 0 (ANSI_CHARSET) is Windows-1252 and 255 (OEM_CHARSET) is Code Page 437.
      * Any other value (symbol fonts, other code pages) maps bytes as they are
-     * (charset::latin1).
+     * (charset::latin1); for another code page, give `font_source` a `code_page`.
      */
     [[nodiscard]] ONYX_FONT_EXPORT charset charset_from_windows(std::uint8_t windows_charset);
 

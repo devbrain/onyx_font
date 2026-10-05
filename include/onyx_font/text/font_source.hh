@@ -30,6 +30,7 @@
 #pragma once
 
 #include <onyx_font/export.h>
+#include <onyx_font/charset.hh>
 #include <onyx_font/text/types.hh>
 #include <onyx_font/text/raster_target.hh>
 #include <onyx_font/text/text_style.hh>
@@ -37,6 +38,7 @@
 #include <onyx_font/vector_font.hh>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace onyx_font {
@@ -89,6 +91,11 @@ namespace onyx_font {
         /// glyphs. Use after a fallible factory like `from_ttf_bytes`.
         [[nodiscard]] bool is_valid() const;
 
+        /// Read an 8-bit (bitmap or vector) font's glyph codes through `page` instead of the font's charset;
+        /// nullopt goes back to the charset. For fonts of a code page onyx_font doesn't know (a Windows
+        /// Cyrillic font loads as latin1). TTF fonts ignore it.
+        void set_code_page(std::optional<code_page> page);
+
         [[nodiscard]] font_source_type type() const;
         [[nodiscard]] bool has_glyph(char32_t codepoint) const;
         [[nodiscard]] char32_t default_char() const;
@@ -113,6 +120,8 @@ namespace onyx_font {
         std::unique_ptr<impl> m_impl;
 
         font_source();
+
+        [[nodiscard]] const code_page* page() const;
 
         // Type-erased dispatch (defined in .cc, branches on impl->kind).
         // Templates above wrap the typed raster_target into these.
