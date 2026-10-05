@@ -183,6 +183,10 @@ namespace onyx_font {
         }
     }
 
+    bool freetype_font::monochrome() const {
+        return m_impl && m_impl->monochrome;
+    }
+
     float freetype_font::get_scale_for_pixel_height(float pixel_height) const {
         if (!is_valid() || m_impl->face->units_per_EM == 0) {
             return 0.0f;

@@ -160,6 +160,23 @@ TEST_SUITE("ttf_font") {
                        "##....##\n");
     }
 
+    TEST_CASE("monochrome glyphs report where their hinted bitmaps sit") {
+        if (!test_data::file_exists(test_data::ttf_marlett())) {
+            return;
+        }
+        auto source = font_source::from_ttf_bytes(test_data::load_ttf_marlett());
+        REQUIRE(source.is_valid());
+        source.set_monochrome(true);
+        // A radio button's parts at 13 pixels: the arcs' left edges and tops, as hinted for 1-bit pixels
+        const auto m = source.get_glyph_metrics(U'm', 13.0f);
+        CHECK(m.bearing_x == doctest::Approx(3));
+        CHECK(m.bearing_y == doctest::Approx(10));
+        CHECK(m.width == doctest::Approx(9));
+        const auto j = source.get_glyph_metrics(U'j', 13.0f);
+        CHECK(j.bearing_x == doctest::Approx(1));
+        CHECK(j.bearing_y == doctest::Approx(13));
+    }
+
     TEST_CASE("get_kerning returns value") {
         REQUIRE(test_data::file_exists(test_data::ttf_arial()));
 

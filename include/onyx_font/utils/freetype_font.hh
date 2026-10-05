@@ -103,6 +103,7 @@ namespace onyx_font {
          * As Windows 95 drew TrueType: Marlett's caption-button glyphs at 10 pixels are Windows' own.
          */
         void set_monochrome(bool on);
+        [[nodiscard]] bool monochrome() const;
 
         /**
          * @brief Get scale factor for a given pixel height.

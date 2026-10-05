@@ -315,6 +315,18 @@ glyph_metrics font_source::get_glyph_metrics(char32_t codepoint, float size) con
         }
         case impl::kind::ttf: {
 #if defined(ONYX_FONT_HAS_LOADER_TTF)
+            if (m_impl->rasterizer && m_impl->rasterizer->monochrome()) {
+                // Hinted for 1-bit pixels, a glyph's bitmap can sit a pixel off the outline's metrics: its own
+                // place and size are the ones that hold
+                if (auto bitmap = m_impl->rasterizer->rasterize(static_cast<std::uint32_t>(codepoint), size)) {
+                    result.advance_x = bitmap->advance_x;
+                    result.bearing_x = static_cast<float>(bitmap->offset_x);
+                    result.bearing_y = static_cast<float>(-bitmap->offset_y);
+                    result.width = static_cast<float>(bitmap->width);
+                    result.height = static_cast<float>(bitmap->height);
+                }
+                break;
+            }
             auto ttf_metrics = m_impl->tt->get_glyph_metrics(
                 static_cast<std::uint32_t>(codepoint), size);
             if (ttf_metrics) {
