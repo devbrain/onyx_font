@@ -38,6 +38,11 @@ namespace onyx_font {
             );
 
             valid = (error == 0 && face != nullptr);
+            if (valid && face->charmap == nullptr) {
+                // A symbol font (Marlett, Wingdings) has only a Microsoft Symbol charmap, which FreeType
+                // doesn't select by itself
+                (void)FT_Select_Charmap(face, FT_ENCODING_MS_SYMBOL);
+            }
         }
 
         ~impl() {
@@ -106,7 +111,7 @@ namespace onyx_font {
             return std::nullopt;
         }
 
-        FT_UInt glyph_index = FT_Get_Char_Index(m_impl->face, codepoint);
+        FT_UInt glyph_index = detail::char_index(m_impl->face, codepoint);
         if (glyph_index == 0 && codepoint != 0) {
             return std::nullopt;
         }
@@ -148,7 +153,7 @@ namespace onyx_font {
             return std::nullopt;
         }
 
-        FT_UInt glyph_index = FT_Get_Char_Index(m_impl->face, codepoint);
+        FT_UInt glyph_index = detail::char_index(m_impl->face, codepoint);
         if (glyph_index == 0 && codepoint != 0) {
             return std::nullopt;
         }
@@ -286,8 +291,8 @@ namespace onyx_font {
             return 0.0f;
         }
 
-        FT_UInt glyph1 = FT_Get_Char_Index(m_impl->face, first);
-        FT_UInt glyph2 = FT_Get_Char_Index(m_impl->face, second);
+        FT_UInt glyph1 = detail::char_index(m_impl->face, first);
+        FT_UInt glyph2 = detail::char_index(m_impl->face, second);
 
         FT_Vector kerning;
         FT_Error error = FT_Get_Kerning(
@@ -311,7 +316,7 @@ namespace onyx_font {
             return false;
         }
 
-        FT_UInt glyph_index = FT_Get_Char_Index(m_impl->face, codepoint);
+        FT_UInt glyph_index = detail::char_index(m_impl->face, codepoint);
         return glyph_index != 0 || codepoint == 0;
     }
 

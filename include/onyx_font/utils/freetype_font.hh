@@ -97,6 +97,14 @@ namespace onyx_font {
         ) const;
 
         /**
+         * @brief Rasterize without antialiasing: hinted for 1-bit output (FT_LOAD_TARGET_MONO) and rendered
+         * so (FT_RENDER_MODE_MONO), each pixel 0 or 255.
+         *
+         * As Windows 95 drew TrueType: Marlett's caption-button glyphs at 10 pixels are Windows' own.
+         */
+        void set_monochrome(bool on);
+
+        /**
          * @brief Get scale factor for a given pixel height.
          */
         [[nodiscard]] float get_scale_for_pixel_height(float pixel_height) const;

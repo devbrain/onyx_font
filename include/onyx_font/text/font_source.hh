@@ -96,6 +96,10 @@ namespace onyx_font {
         /// Cyrillic font loads as latin1). TTF fonts ignore it.
         void set_code_page(std::optional<code_page> page);
 
+        /// Rasterize a TTF font without antialiasing, hinted for 1-bit pixels (as Windows 95 drew TrueType
+        /// text); bitmap and vector fonts are 1-bit already
+        void set_monochrome(bool on);
+
         [[nodiscard]] font_source_type type() const;
         [[nodiscard]] bool has_glyph(char32_t codepoint) const;
         [[nodiscard]] char32_t default_char() const;

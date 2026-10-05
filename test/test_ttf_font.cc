@@ -7,6 +7,12 @@
 #include <doctest/doctest.h>
 #include <onyx_font/ttf_font.hh>
 #include <onyx_font/font_factory.hh>
+#include <onyx_font/text/font_source.hh>
+#include <onyx_font/text/raster_target.hh>
+
+#include <algorithm>
+#include <string>
+#include <vector>
 #include "test_data.hh"
 
 using namespace onyx_font;
@@ -97,6 +103,61 @@ TEST_SUITE("ttf_font") {
         CHECK(font.has_glyph('A'));
         CHECK(font.has_glyph('z'));
         CHECK(font.has_glyph('0'));
+    }
+
+    TEST_CASE("a symbol font: its glyphs by their 8-bit codes and at U+F000 plus them") {
+        if (!test_data::file_exists(test_data::ttf_marlett())) {
+            return;
+        }
+        auto data = test_data::load_ttf_marlett();
+        ttf_font font(data);
+        REQUIRE(font.is_valid());
+        CHECK(font.has_glyph(U'r'));            // the close button's cross
+        CHECK(font.has_glyph(0xF072));
+        CHECK(font.has_glyph(U'0'));            // minimize
+        CHECK_FALSE(font.has_glyph(0x0410));    // no Cyrillic in a symbol font
+        const auto cross = font.get_glyph_metrics(U'r', 13);
+        REQUIRE(cross.has_value());
+        CHECK(cross->advance_x > 0);
+        const auto source = font_source::from_ttf(font);
+        CHECK(source.has_glyph(U'1'));          // maximize, through font_source
+    }
+
+    TEST_CASE("monochrome rendering: Marlett's close cross at 10 pixels, as Windows 95 drew it") {
+        if (!test_data::file_exists(test_data::ttf_marlett())) {
+            return;
+        }
+        auto source = font_source::from_ttf_bytes(test_data::load_ttf_marlett());
+        REQUIRE(source.is_valid());
+        source.set_monochrome(true);
+        std::vector<uint8_t> buffer(16 * 16, 0);
+        grayscale_target target(buffer.data(), 16, 16);
+        source.rasterize_glyph(U'r', 10.0f, target, 0, 10);
+        std::string drawn;
+        int top = 16, left = 16;
+        for (int y = 0; y < 16; ++y) {
+            for (int x = 0; x < 16; ++x) {
+                const uint8_t v = buffer[static_cast<size_t>(y * 16 + x)];
+                CHECK((v == 0 || v == 255)); // no antialiasing
+                if (v != 0) {
+                    top = std::min(top, y);
+                    left = std::min(left, x);
+                }
+            }
+        }
+        for (int y = top; y < top + 7; ++y) {
+            for (int x = left; x < left + 8; ++x) {
+                drawn += buffer[static_cast<size_t>(y * 16 + x)] != 0 ? '#' : '.';
+            }
+            drawn += '\n';
+        }
+        CHECK(drawn == "##....##\n"
+                       ".##..##.\n"
+                       "..####..\n"
+                       "...##...\n"
+                       "..####..\n"
+                       ".##..##.\n"
+                       "##....##\n");
     }
 
     TEST_CASE("get_kerning returns value") {

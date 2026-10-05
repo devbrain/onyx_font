@@ -15,10 +15,16 @@
 
 namespace onyx_font {
 
+    namespace {
+        // FT_LOAD_TARGET_MONO, without the macro's cast (a useless cast here)
+        constexpr FT_Int32 load_target_mono = (static_cast<FT_Int32>(FT_RENDER_MODE_MONO) & 15) << 16;
+    }
+
     struct freetype_font::impl {
         FT_Face face = nullptr;
         std::vector<uint8_t> data_copy;  // Keep a copy of font data
         bool valid = false;
+        bool monochrome = false;         // hinted for and rendered to 1 bit (set_monochrome)
 
         impl(std::span<const uint8_t> data, int font_index) {
             if (data.empty()) {
@@ -42,6 +48,11 @@ namespace onyx_font {
             );
 
             valid = (error == 0 && face != nullptr);
+            if (valid && face->charmap == nullptr) {
+                // A symbol font (Marlett, Wingdings) has only a Microsoft Symbol charmap, which FreeType
+                // doesn't select by itself
+                (void)FT_Select_Charmap(face, FT_ENCODING_MS_SYMBOL);
+            }
         }
 
         ~impl() {
@@ -107,12 +118,13 @@ namespace onyx_font {
         }
 
         // Load glyph
-        FT_UInt glyph_index = FT_Get_Char_Index(m_impl->face, codepoint);
+        FT_UInt glyph_index = detail::char_index(m_impl->face, codepoint);
         if (glyph_index == 0 && codepoint != 0) {
             return std::nullopt;
         }
 
-        FT_Error error = FT_Load_Glyph(m_impl->face, glyph_index, FT_LOAD_DEFAULT);
+        FT_Error error = FT_Load_Glyph(m_impl->face, glyph_index,
+                                       m_impl->monochrome ? load_target_mono : FT_LOAD_DEFAULT);
         if (error) {
             return std::nullopt;
         }
@@ -130,7 +142,8 @@ namespace onyx_font {
         }
 
         // Render to bitmap
-        error = FT_Render_Glyph(m_impl->face->glyph, FT_RENDER_MODE_NORMAL);
+        error = FT_Render_Glyph(m_impl->face->glyph,
+                                m_impl->monochrome ? FT_RENDER_MODE_MONO : FT_RENDER_MODE_NORMAL);
         if (error) {
             return std::nullopt;
         }
@@ -149,16 +162,25 @@ namespace onyx_font {
             result.bitmap.resize(static_cast<std::size_t>(result.width) *
                                  static_cast<std::size_t>(result.height));
 
-            // Copy bitmap data
+            // Copy bitmap data (a monochrome bitmap's bits, most significant first, become 0 or 255)
             for (int y = 0; y < result.height; ++y) {
                 for (int x = 0; x < result.width; ++x) {
+                    const unsigned char* row = bitmap.buffer + y * bitmap.pitch;
                     result.bitmap[static_cast<std::size_t>(y * result.width + x)] =
-                        bitmap.buffer[y * bitmap.pitch + x];
+                        bitmap.pixel_mode == FT_PIXEL_MODE_MONO
+                            ? static_cast<uint8_t>(((row[x / 8] >> (7 - x % 8)) & 1) != 0 ? 255 : 0)
+                            : row[x];
                 }
             }
         }
 
         return result;
+    }
+
+    void freetype_font::set_monochrome(bool on) {
+        if (m_impl) {
+            m_impl->monochrome = on;
+        }
     }
 
     float freetype_font::get_scale_for_pixel_height(float pixel_height) const {
@@ -197,8 +219,8 @@ namespace onyx_font {
 
         m_impl->set_pixel_size(pixel_height);
 
-        FT_UInt left_index = FT_Get_Char_Index(m_impl->face, left);
-        FT_UInt right_index = FT_Get_Char_Index(m_impl->face, right);
+        FT_UInt left_index = detail::char_index(m_impl->face, left);
+        FT_UInt right_index = detail::char_index(m_impl->face, right);
 
         FT_Vector kerning;
         FT_Error error = FT_Get_Kerning(

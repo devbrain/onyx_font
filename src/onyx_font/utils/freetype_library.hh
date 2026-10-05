@@ -46,4 +46,18 @@ namespace onyx_font::detail {
         FT_Library m_library = nullptr;
     };
 
+    /**
+     * @brief The glyph index of a code point. In a symbol font (its charmap Microsoft Symbol) a code point
+     * below U+0100 is looked for at U+F000 plus it too, as Windows maps a symbol font's 8-bit codes:
+     * Marlett's 'r' is U+F072.
+     */
+    inline FT_UInt char_index(FT_Face face, FT_ULong codepoint) {
+        const FT_UInt index = FT_Get_Char_Index(face, codepoint);
+        if (index == 0 && codepoint < 0x100 && face->charmap != nullptr &&
+            face->charmap->encoding == FT_ENCODING_MS_SYMBOL) {
+            return FT_Get_Char_Index(face, 0xF000 + codepoint);
+        }
+        return index;
+    }
+
 } // namespace onyx_font::detail

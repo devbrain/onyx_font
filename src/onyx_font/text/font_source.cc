@@ -118,6 +118,16 @@ void font_source::set_code_page(std::optional<code_page> page) {
     m_impl->page = page;
 }
 
+void font_source::set_monochrome(bool on) {
+#if defined(ONYX_FONT_HAS_LOADER_TTF)
+    if (m_impl->rasterizer) {
+        m_impl->rasterizer->set_monochrome(on);
+    }
+#else
+    (void)on;
+#endif
+}
+
 const code_page* font_source::page() const {
     return m_impl->page ? &*m_impl->page : nullptr;
 }
