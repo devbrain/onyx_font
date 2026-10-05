@@ -6,13 +6,13 @@
  * each byte shows depends on the font's character set: the IBM BIOS fonts
  * follow Code Page 437, Windows fonts usually Windows-1252. `font_source`
  * uses the font's charset to find the glyph for a Unicode code point, so
- * `U'é'` draws byte 0x82 of a CP437 font and byte 0xE9 of a Windows-1252 one.
+ * `U'\u00E9'` (e acute) draws byte 0x82 of a CP437 font and byte 0xE9 of a Windows-1252 one.
  *
  * @code{.cpp}
  * #include <onyx_font/charset.hh>
  *
- * auto byte = onyx_font::encode_char(onyx_font::charset::cp437, U'░');   // 0xB0
- * char32_t cp = onyx_font::decode_char(onyx_font::charset::cp437, 0x82); // U'é'
+ * auto byte = onyx_font::encode_char(onyx_font::charset::cp437, U'\u2591');  // light shade: 0xB0
+ * char32_t cp = onyx_font::decode_char(onyx_font::charset::cp437, 0x82); // U'\u00E9'
  * @endcode
  */
 
@@ -43,7 +43,7 @@ namespace onyx_font {
          *
          * 0x80-0xFF are accented letters, box drawing, shades and math
          * symbols. The pictures shown for the control bytes 0x01-0x1F and
-         * 0x7F (☺, ♥, ►, ⌂, ...) are reached through their own code points;
+         * 0x7F (smileys, card suits, arrows, the house, ...) are reached through their own code points;
          * the control code points themselves still map to those bytes.
          */
         cp437,
@@ -51,7 +51,7 @@ namespace onyx_font {
         /**
          * @brief Windows-1252 (Windows ANSI fonts).
          *
-         * Latin-1, except 0x80-0x9F, which hold €, quotes, dashes, Š, Ž, Œ
+         * Latin-1, except 0x80-0x9F, which hold the euro sign, quotes, dashes, S/Z caron, OE
          * and others. The five unassigned bytes there map to the C1 control
          * code points of the same value.
          */

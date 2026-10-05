@@ -48,42 +48,42 @@ TEST_SUITE("charset") {
                 REQUIRE(encode_char(set, c) == static_cast<uint8_t>(c));
                 REQUIRE(decode_char(set, static_cast<uint8_t>(c)) == c);
             }
-            CHECK_FALSE(encode_char(set, U'中').has_value());
+            CHECK_FALSE(encode_char(set, U'\u4E2D').has_value());
         }
     }
 
     TEST_CASE("latin1 maps bytes as they are") {
-        CHECK(encode_char(charset::latin1, U'é') == uint8_t{0xE9});
+        CHECK(encode_char(charset::latin1, U'\u00E9') == uint8_t{0xE9});
         CHECK(encode_char(charset::latin1, U'\u0080') == uint8_t{0x80});
-        CHECK_FALSE(encode_char(charset::latin1, U'€').has_value());
-        CHECK(decode_char(charset::latin1, 0xFF) == U'ÿ');
+        CHECK_FALSE(encode_char(charset::latin1, U'\u20AC').has_value());
+        CHECK(decode_char(charset::latin1, 0xFF) == U'\u00FF');
     }
 
     TEST_CASE("cp437: accented letters, box drawing, shades and the control pictures") {
-        CHECK(encode_char(charset::cp437, U'é') == uint8_t{0x82});
-        CHECK(encode_char(charset::cp437, U'Ç') == uint8_t{0x80});
-        CHECK(encode_char(charset::cp437, U'░') == uint8_t{0xB0});
-        CHECK(encode_char(charset::cp437, U'╬') == uint8_t{0xCE});
-        CHECK(encode_char(charset::cp437, U'ß') == uint8_t{0xE1});
-        CHECK(encode_char(charset::cp437, U' ') == uint8_t{0xFF});
-        CHECK(encode_char(charset::cp437, U'☺') == uint8_t{0x01});
-        CHECK(encode_char(charset::cp437, U'▼') == uint8_t{0x1F});
-        CHECK(encode_char(charset::cp437, U'⌂') == uint8_t{0x7F});
-        CHECK_FALSE(encode_char(charset::cp437, U'À').has_value());   // not in CP437
+        CHECK(encode_char(charset::cp437, U'\u00E9') == uint8_t{0x82});
+        CHECK(encode_char(charset::cp437, U'\u00C7') == uint8_t{0x80});
+        CHECK(encode_char(charset::cp437, U'\u2591') == uint8_t{0xB0});
+        CHECK(encode_char(charset::cp437, U'\u256C') == uint8_t{0xCE});
+        CHECK(encode_char(charset::cp437, U'\u00DF') == uint8_t{0xE1});
+        CHECK(encode_char(charset::cp437, U'\u00A0') == uint8_t{0xFF});
+        CHECK(encode_char(charset::cp437, U'\u263A') == uint8_t{0x01});
+        CHECK(encode_char(charset::cp437, U'\u25BC') == uint8_t{0x1F});
+        CHECK(encode_char(charset::cp437, U'\u2302') == uint8_t{0x7F});
+        CHECK_FALSE(encode_char(charset::cp437, U'\u00C0').has_value());   // A grave: not in CP437
         CHECK_FALSE(encode_char(charset::cp437, U'\u0082').has_value());
-        CHECK(decode_char(charset::cp437, 0x82) == U'é');
-        CHECK(decode_char(charset::cp437, 0xDB) == U'█');
+        CHECK(decode_char(charset::cp437, 0x82) == U'\u00E9');
+        CHECK(decode_char(charset::cp437, 0xDB) == U'\u2588');
     }
 
     TEST_CASE("cp1252: the 0x80-0x9F block") {
-        CHECK(encode_char(charset::cp1252, U'€') == uint8_t{0x80});
-        CHECK(encode_char(charset::cp1252, U'—') == uint8_t{0x97});
-        CHECK(encode_char(charset::cp1252, U'Ÿ') == uint8_t{0x9F});
-        CHECK(encode_char(charset::cp1252, U'é') == uint8_t{0xE9});
+        CHECK(encode_char(charset::cp1252, U'\u20AC') == uint8_t{0x80});
+        CHECK(encode_char(charset::cp1252, U'\u2014') == uint8_t{0x97});
+        CHECK(encode_char(charset::cp1252, U'\u0178') == uint8_t{0x9F});
+        CHECK(encode_char(charset::cp1252, U'\u00E9') == uint8_t{0xE9});
         CHECK(encode_char(charset::cp1252, U'\u0081') == uint8_t{0x81}); // unassigned: kept
-        CHECK_FALSE(encode_char(charset::cp1252, U'\u0080').has_value()); // replaced by €
-        CHECK(decode_char(charset::cp1252, 0x80) == U'€');
-        CHECK(decode_char(charset::cp1252, 0xE9) == U'é');
+        CHECK_FALSE(encode_char(charset::cp1252, U'\u0080').has_value()); // replaced by the euro sign
+        CHECK(decode_char(charset::cp1252, 0x80) == U'\u20AC');
+        CHECK(decode_char(charset::cp1252, 0xE9) == U'\u00E9');
     }
 
     TEST_CASE("every byte decodes to a code point that encodes back to it") {
@@ -107,13 +107,13 @@ TEST_SUITE("charset") {
             CAPTURE(font->get_name());
             CHECK(font->get_charset() == charset::cp437);
             const auto source = font_source::from_bitmap(*font);
-            CHECK(source.has_glyph(U'é'));
-            CHECK(source.has_glyph(U'▒'));
-            CHECK_FALSE(source.has_glyph(U'À'));
-            CHECK(drawn(*font, U'é') == stored(*font, 0x82));
-            CHECK(drawn(*font, U'█') == stored(*font, 0xDB));
+            CHECK(source.has_glyph(U'\u00E9'));
+            CHECK(source.has_glyph(U'\u2592'));
+            CHECK_FALSE(source.has_glyph(U'\u00C0'));
+            CHECK(drawn(*font, U'\u00E9') == stored(*font, 0x82));
+            CHECK(drawn(*font, U'\u2588') == stored(*font, 0xDB));
             CHECK(drawn(*font, U'A') == stored(*font, 'A'));
-            CHECK(drawn(*font, U'é') != stored(*font, 0xE9));
+            CHECK(drawn(*font, U'\u00E9') != stored(*font, 0xE9));
         }
     }
 
@@ -135,7 +135,7 @@ TEST_SUITE("charset") {
         auto vgaoem = font_factory::load_bitmap(test_data::load_fon_vgaoem(), 0);
         CHECK(vgaoem.get_charset() == charset::cp437);
         if (vgaoem.get_first_char() <= 0x82 && vgaoem.get_last_char() >= 0x82) {
-            CHECK(drawn(vgaoem, U'é') == stored(vgaoem, 0x82));
+            CHECK(drawn(vgaoem, U'\u00E9') == stored(vgaoem, 0x82));
         }
     }
 }

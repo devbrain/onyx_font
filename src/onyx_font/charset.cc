@@ -8,7 +8,7 @@
 namespace onyx_font {
     namespace {
         // Code Page 437, bytes 0x80-0xFF
-        constexpr std::array<char16_t, 128> k_cp437_high = {
+        constexpr std::array<char32_t, 128> k_cp437_high = {
             0x00C7, 0x00FC, 0x00E9, 0x00E2, 0x00E4, 0x00E0, 0x00E5, 0x00E7, // 0x80
             0x00EA, 0x00EB, 0x00E8, 0x00EF, 0x00EE, 0x00EC, 0x00C4, 0x00C5,
             0x00C9, 0x00E6, 0x00C6, 0x00F4, 0x00F6, 0x00F2, 0x00FB, 0x00F9, // 0x90
@@ -28,17 +28,17 @@ namespace onyx_font {
         };
 
         // Code Page 437, the pictures of the control bytes 0x00-0x1F (0x00 shows nothing)
-        constexpr std::array<char16_t, 32> k_cp437_low = {
+        constexpr std::array<char32_t, 32> k_cp437_low = {
             0x0000, 0x263A, 0x263B, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022, // 0x00
             0x25D8, 0x25CB, 0x25D9, 0x2642, 0x2640, 0x266A, 0x266B, 0x263C,
             0x25BA, 0x25C4, 0x2195, 0x203C, 0x00B6, 0x00A7, 0x25AC, 0x21A8, // 0x10
             0x2191, 0x2193, 0x2192, 0x2190, 0x221F, 0x2194, 0x25B2, 0x25BC,
         };
 
-        constexpr char16_t k_cp437_house = 0x2302; // the picture of 0x7F
+        constexpr char32_t k_cp437_house = 0x2302; // the picture of 0x7F
 
         // Windows-1252, bytes 0x80-0x9F (unassigned bytes keep their C1 control code point)
-        constexpr std::array<char16_t, 32> k_cp1252_c1 = {
+        constexpr std::array<char32_t, 32> k_cp1252_c1 = {
             0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, // 0x80
             0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
             0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, // 0x90
@@ -46,7 +46,7 @@ namespace onyx_font {
         };
 
         template<std::size_t N>
-        std::optional<std::uint8_t> find(const std::array<char16_t, N>& table, char32_t codepoint,
+        std::optional<std::uint8_t> find(const std::array<char32_t, N>& table, char32_t codepoint,
                                          unsigned first_code) {
             for (std::size_t i = 0; i < N; ++i) {
                 if (table[i] == codepoint) {
