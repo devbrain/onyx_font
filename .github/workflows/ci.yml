@@ -20,11 +20,11 @@ jobs:
             compiler: gcc
             version: 13
 
-          # Linux Clang
-          - os: ubuntu-latest
+          # Linux Clang (24.04: apt.llvm.org has no 17/18 for Ubuntu 26.04, ubuntu-latest since 2026-10)
+          - os: ubuntu-24.04
             compiler: clang
             version: 17
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             compiler: clang
             version: 18
 
