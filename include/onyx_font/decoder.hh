@@ -71,14 +71,12 @@
 #include <vector>
 
 #include <onyx_font/export.h>
+#include <onyx_font/font_entry.hh>
 #include <onyx_font/bitmap_font.hh>
 #include <onyx_font/vector_font.hh>
 #include <onyx_font/ttf_font.hh>
 
 namespace onyx_font {
-
-    // Forward declaration
-    struct font_entry;
 
     /**
      * @brief Abstract base class for bitmap font format decoders.

@@ -100,6 +100,7 @@ target_sources(onyx_font PRIVATE
     font_registry.cc
     ${PROJECT_SOURCE_DIR}/include/onyx_font/font_registry.hh
     ${PROJECT_SOURCE_DIR}/include/onyx_font/decoder.hh
+    ${PROJECT_SOURCE_DIR}/include/onyx_font/font_entry.hh
 
     loader/loaders.hh
 
